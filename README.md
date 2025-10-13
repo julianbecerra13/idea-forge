@@ -494,7 +494,7 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ## 👨‍💻 Autor
 
-**Dark** - [GitHub](https://github.com/tu-usuario)
+**Dark** - [GitHub](https://github.com/julianbecerra13)
 
 ---
 
@@ -504,22 +504,6 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 - [Google Gemini](https://ai.google.dev/) - Modelo de IA
 - [Vercel](https://vercel.com/) - Next.js framework
 - [Radix UI](https://www.radix-ui.com/) - Componentes primitivos
-
----
-
-## 📸 Screenshots
-
-### Página de Inicio
-![Home](.github/screenshots/home.png)
-
-### Crear Idea
-![Create](.github/screenshots/create.png)
-
-### Detalle con Chat
-![Detail](.github/screenshots/detail.png)
-
-### Modal de Completitud
-![Complete](.github/screenshots/complete.png)
 
 ---
 
