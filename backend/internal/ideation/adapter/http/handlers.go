@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -57,6 +58,10 @@ func (h *Handlers) createIdea(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Limitar tamaño del body a 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 	var in struct {
 		Title                string `json:"title"`
 		Objective            string `json:"objective"`
@@ -127,9 +132,13 @@ func (h *Handlers) updateIdea(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/ideation/ideas/")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
+		log.Printf("invalid UUID received: %s", idStr)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
+
+	// Limitar tamaño del body a 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	var in struct {
 		Title                string `json:"title"`
@@ -355,7 +364,10 @@ func (h *Handlers) sendInitialAgentMessage(ctx context.Context, idea any) error 
 
 	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("timeout sending initial message (30s exceeded): %w", err)
+		}
+		return fmt.Errorf("error calling genkit: %w", err)
 	}
 	defer resp.Body.Close()
 
