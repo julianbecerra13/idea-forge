@@ -3,23 +3,23 @@ import axios from "axios";
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE,
   headers: { "Content-Type": "application/json" },
-  timeout: 10000, // 10 segundos
+  timeout: 35000, // 35 segundos (5s más que backend para evitar timeouts prematuros)
 });
 
 // Interceptor para logs (request)
 api.interceptors.request.use(
   (config) => {
-    console.log("🚀 API Request:", {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      data: config.data,
-    });
+    // Solo loguear en desarrollo para evitar exponer datos en producción
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🚀 API Request:", {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+      });
+    }
     return config;
   },
   (error) => {
-    console.error("❌ API Request Error:", error);
+    console.error("❌ API Request Error:", error.message);
     return Promise.reject(error);
   }
 );
@@ -27,22 +27,21 @@ api.interceptors.request.use(
 // Interceptor para logs (response)
 api.interceptors.response.use(
   (response) => {
-    console.log("✅ API Response:", {
-      status: response.status,
-      url: response.config.url,
-      data: response.data,
-    });
+    // Solo loguear en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log("✅ API Response:", {
+        status: response.status,
+        url: response.config.url,
+      });
+    }
     return response;
   },
   (error) => {
-    console.error("❌ API Response Error:", {
-      message: error.message,
-      code: error.code,
+    // Loguear solo metadata del error, no datos sensibles
+    console.error("❌ API Error:", {
       status: error.response?.status,
-      statusText: error.response?.statusText,
       url: error.config?.url,
-      baseURL: error.config?.baseURL,
-      data: error.response?.data,
+      message: error.message,
     });
     return Promise.reject(error);
   }

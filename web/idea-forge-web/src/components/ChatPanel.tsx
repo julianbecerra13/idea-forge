@@ -77,7 +77,19 @@ export default function ChatPanel({
   async function send() {
     if (!text.trim() || loading || isCompleted) return;
 
-    const userMessage = text;
+    const userMessage = text.trim();
+
+    // Validaciones antes de enviar (alineadas con backend)
+    if (userMessage.length === 0) {
+      toast.error("El mensaje no puede estar vacío");
+      return;
+    }
+
+    if (userMessage.length > 10000) {
+      toast.error("El mensaje es muy largo. Máximo 10,000 caracteres.");
+      return;
+    }
+
     setText("");
     setLoading(true);
 
@@ -97,8 +109,15 @@ export default function ChatPanel({
       if (onMessageSent) {
         onMessageSent();
       }
-    } catch (error) {
-      toast.error("Error al enviar mensaje");
+    } catch (error: any) {
+      // Mostrar mensaje de error específico del backend si existe
+      const errorMsg = error.response?.data || error.message || "Error al enviar mensaje";
+      toast.error(errorMsg);
+
+      // Revertir optimistic update en caso de error
+      setMessages((prev) =>
+        prev.filter(m => !(m.Content === userMessage && m.Role === "user" && !m.CreatedAt.includes('T')))
+      );
       console.error(error);
     } finally {
       setLoading(false);
