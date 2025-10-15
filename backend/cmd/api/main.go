@@ -35,8 +35,25 @@ func main() {
 	update := ideationuc.NewUpdateIdea(repo)
 	appendMsg := ideationuc.NewAppendMessage(repo)
 
+	// Configurar HTTP client con timeout para llamadas a servicios externos
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
 	mux := http.NewServeMux()
-	handlers := &ideationhttp.Handlers{Create: create, Get: get, List: list, Update: update, Append: appendMsg}
+	handlers := &ideationhttp.Handlers{
+		Create:     create,
+		Get:        get,
+		List:       list,
+		Update:     update,
+		Append:     appendMsg,
+		HTTPClient: httpClient,
+	}
 	handlers.Register(mux)
 
 	srv := &http.Server{
@@ -49,15 +66,32 @@ func main() {
 }
 
 func cors(next http.Handler) http.Handler {
+	// Lista blanca de orígenes permitidos
+	allowedOrigins := map[string]bool{
+		"http://localhost:3000": true,
+		"http://localhost:3002": true,
+	}
+
+	// En producción, cargar desde variable de entorno
+	if prodOrigin := os.Getenv("ALLOWED_ORIGIN"); prodOrigin != "" {
+		allowedOrigins[prodOrigin] = true
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Permitir peticiones desde el frontend (múltiples puertos)
 		origin := r.Header.Get("Origin")
-		if origin == "http://localhost:3000" || origin == "http://localhost:3002" {
+
+		// Validar que el origin esté en la lista permitida
+		if allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		} else if origin != "" {
+			// Log de intentos sospechosos
+			log.Printf("CORS blocked origin: %s", origin)
 		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // Cache preflight 24h
 
 		// Manejar preflight request
 		if r.Method == "OPTIONS" {

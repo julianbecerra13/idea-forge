@@ -11,10 +11,26 @@ const PORT  = Number(process.env.PORT || 3001);
 const TOKEN = process.env.GENKIT_TOKEN || "";
 const API_KEY = process.env.GOOGLE_API_KEY;
 
+// Validar API Key al inicio
+if (!API_KEY) {
+  console.error("FATAL: GOOGLE_API_KEY not set");
+  process.exit(1);
+}
+
 // Fuerza API v1 (evita v1beta)
 const genAI = new GoogleGenerativeAI(API_KEY, {
   apiEndpoint: "https://generativelanguage.googleapis.com/v1",
 });
+
+// Función para sanitizar inputs y prevenir prompt injection
+function sanitizeForPrompt(text) {
+  if (!text) return "";
+
+  return text
+    .replace(/["""]/g, "'")    // Reemplazar comillas que pueden romper el prompt
+    .replace(/\n/g, " ")       // Eliminar saltos de línea maliciosos
+    .substring(0, 5000);       // Limitar longitud máxima
+}
 
 function checkAuth(req, res, next) {
   if (!TOKEN) return next();
@@ -36,15 +52,21 @@ app.post("/flows/ideationAgent", checkAuth, async (req, res) => {
     let prompt;
 
     if (isFirstMessage) {
+      // Sanitizar inputs para prevenir prompt injection
+      const sanitizedTitle = sanitizeForPrompt(idea?.title);
+      const sanitizedObjective = sanitizeForPrompt(idea?.objective);
+      const sanitizedProblem = sanitizeForPrompt(idea?.problem);
+      const sanitizedScope = sanitizeForPrompt(idea?.scope);
+
       // Primer mensaje: análisis profundo y preguntas clave
       prompt = `
 Eres un agente especializado en ideación de proyectos de software. Tu misión es ayudar al usuario a estructurar y mejorar su idea mediante preguntas estratégicas.
 
 IDEA INICIAL:
-- Título: "${idea?.title ?? ""}"
-- Objetivo: "${idea?.objective ?? ""}"
-- Problema: "${idea?.problem ?? ""}"
-- Alcance: "${idea?.scope ?? ""}"
+- Título: "${sanitizedTitle}"
+- Objetivo: "${sanitizedObjective}"
+- Problema: "${sanitizedProblem}"
+- Alcance: "${sanitizedScope}"
 
 INSTRUCCIONES:
 1. Analiza la idea y detecta qué información falta o es vaga
@@ -66,20 +88,27 @@ RESPONDE EN FORMATO JSON:
 }
 `.trim();
     } else {
+      // Sanitizar inputs para prevenir prompt injection
+      const sanitizedTitle = sanitizeForPrompt(idea?.title);
+      const sanitizedObjective = sanitizeForPrompt(idea?.objective);
+      const sanitizedProblem = sanitizeForPrompt(idea?.problem);
+      const sanitizedScope = sanitizeForPrompt(idea?.scope);
+      const sanitizedMessage = sanitizeForPrompt(message);
+
       // Conversación en curso: analiza respuestas y actualiza campos
       prompt = `
 Eres un agente especializado en ideación de proyectos de software.
 
 IDEA ACTUAL:
-- Título: "${idea?.title ?? ""}"
-- Objetivo: "${idea?.objective ?? ""}"
-- Problema: "${idea?.problem ?? ""}"
-- Alcance: "${idea?.scope ?? ""}
+- Título: "${sanitizedTitle}"
+- Objetivo: "${sanitizedObjective}"
+- Problema: "${sanitizedProblem}"
+- Alcance: "${sanitizedScope}"
 
 CONVERSACIÓN PREVIA:
 ${historyLines}
 
-NUEVO MENSAJE DEL USUARIO: "${message}"
+NUEVO MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES:
 1. Analiza la respuesta del usuario
