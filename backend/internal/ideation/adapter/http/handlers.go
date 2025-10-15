@@ -4,21 +4,25 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/dark/idea-forge/internal/ideation/usecase"
 	"github.com/google/uuid"
 )
 
 type Handlers struct {
-	Create *usecase.CreateIdea
-	Get    *usecase.GetIdea
-	List   *usecase.ListIdeas
-	Update *usecase.UpdateIdea
-	Append *usecase.AppendMessage
+	Create     *usecase.CreateIdea
+	Get        *usecase.GetIdea
+	List       *usecase.ListIdeas
+	Update     *usecase.UpdateIdea
+	Append     *usecase.AppendMessage
+	HTTPClient *http.Client
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
@@ -54,6 +58,10 @@ func (h *Handlers) createIdea(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Limitar tamaño del body a 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
 	var in struct {
 		Title                string `json:"title"`
 		Objective            string `json:"objective"`
@@ -76,7 +84,14 @@ func (h *Handlers) createIdea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Enviar mensaje inicial automático del agente
-	go h.sendInitialAgentMessage(idea)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := h.sendInitialAgentMessage(ctx, idea); err != nil {
+			log.Printf("error sending initial message: %v", err)
+		}
+	}()
 
 	writeJSON(w, idea, http.StatusOK)
 }
@@ -117,9 +132,13 @@ func (h *Handlers) updateIdea(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/ideation/ideas/")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
+		log.Printf("invalid UUID received: %s", idStr)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
+
+	// Limitar tamaño del body a 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	var in struct {
 		Title                string `json:"title"`
@@ -152,6 +171,10 @@ func (h *Handlers) chat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Limitar tamaño del body a 1MB para prevenir ataques de memoria
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB
+
 	var in struct {
 		IdeaID  string `json:"idea_id"`
 		Message string `json:"message"`
@@ -160,6 +183,20 @@ func (h *Handlers) chat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
+
+	// VALIDACIONES DE INPUT
+	if len(in.Message) == 0 {
+		http.Error(w, "message cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if len(in.Message) > 10000 { // 10KB máximo por mensaje
+		http.Error(w, "message too long (max 10000 chars)", http.StatusBadRequest)
+		return
+	}
+
+	// Sanitizar espacios
+	in.Message = strings.TrimSpace(in.Message)
 
 	ideaID, err := uuid.Parse(in.IdeaID)
 	if err != nil {
@@ -211,7 +248,7 @@ func (h *Handlers) chat(w http.ResponseWriter, r *http.Request) {
 	if tok := os.Getenv("GENKIT_TOKEN"); tok != "" {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
 		http.Error(w, "agent unreachable: "+err.Error(), http.StatusBadGateway)
 		return
@@ -300,7 +337,7 @@ func (h *Handlers) getMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, msgs, http.StatusOK)
 }
 
-func (h *Handlers) sendInitialAgentMessage(idea any) {
+func (h *Handlers) sendInitialAgentMessage(ctx context.Context, idea any) error {
 	// Convertir idea a map para el agente
 	ideaMap := map[string]any{
 		"title":     getField(idea, "Title"),
@@ -316,15 +353,21 @@ func (h *Handlers) sendInitialAgentMessage(idea any) {
 	})
 
 	url := os.Getenv("GENKIT_BASE_URL") + "/flows/ideationAgent"
-	req, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	if tok := os.Getenv("GENKIT_TOKEN"); tok != "" {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
-		return // Silenciar errores en goroutine
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("timeout sending initial message (30s exceeded): %w", err)
+		}
+		return fmt.Errorf("error calling genkit: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -332,16 +375,18 @@ func (h *Handlers) sendInitialAgentMessage(idea any) {
 		Reply string `json:"reply"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return
+		return err
 	}
 
 	// Guardar mensaje del asistente
 	ideaID := getField(idea, "ID")
 	if idStr, ok := ideaID.(string); ok {
 		if id, err := uuid.Parse(idStr); err == nil {
-			_, _ = h.Append.Execute(context.Background(), id, "assistant", out.Reply)
+			_, err := h.Append.Execute(ctx, id, "assistant", out.Reply)
+			return err
 		}
 	}
+	return nil
 }
 
 func getField(obj any, field string) any {
