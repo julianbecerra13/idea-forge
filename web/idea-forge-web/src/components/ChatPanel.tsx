@@ -308,12 +308,33 @@ export default function ChatPanel({
             </DialogTitle>
             <DialogDescription className="text-center">
               Tu idea ha sido estructurada exitosamente con toda la información necesaria.
-              Los campos han sido mejorados y están listos para el siguiente módulo.
+              Ahora puedes crear un Plan de Acción para definir requerimientos técnicos.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center">
-            <Button onClick={() => setShowCompletedModal(false)} size="lg">
-              Entendido
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={async () => {
+                try {
+                  const { createActionPlan } = await import("@/lib/api");
+                  const plan = await createActionPlan(ideaId);
+                  window.location.href = `/action-plan/${plan.id}`;
+                } catch (error) {
+                  toast.error("Error al crear plan de acción");
+                  console.error(error);
+                }
+              }}
+              size="lg"
+              className="w-full"
+            >
+              Ir a Plan de Acción
+            </Button>
+            <Button
+              onClick={() => setShowCompletedModal(false)}
+              size="lg"
+              variant="outline"
+              className="w-full"
+            >
+              Quedarse Aquí
             </Button>
           </div>
         </DialogContent>

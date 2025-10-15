@@ -177,8 +177,113 @@ FORMATO DE RESPUESTA JSON:
   }
 });
 
+app.post("/action-plan/chat", checkAuth, async (req, res) => {
+  try {
+    const { idea_id, message, context = {} } = req.body || {};
+
+    // Sanitizar inputs
+    const sanitizedMessage = sanitizeForPrompt(message);
+    const sanitizedFuncReq = sanitizeForPrompt(context.functional_requirements || "");
+    const sanitizedNonFuncReq = sanitizeForPrompt(context.non_functional_requirements || "");
+    const sanitizedBusinessFlow = sanitizeForPrompt(context.business_logic_flow || "");
+
+    // Detectar si es la primera interacción
+    const isFirstMessage = !context.functional_requirements && !context.non_functional_requirements && !context.business_logic_flow;
+
+    let prompt;
+
+    if (isFirstMessage) {
+      // Primer mensaje: introducción y análisis inicial
+      prompt = `
+Eres un Analista de Sistemas Senior especializado en levantar requerimientos y diseñar arquitecturas de software.
+
+El usuario ha completado la fase de ideación de su proyecto (ID: ${idea_id}) y ahora necesita crear un Plan de Acción técnico detallado.
+
+Tu misión es ayudarlo a definir:
+1. **Requerimientos Funcionales**: Qué debe hacer el sistema (casos de uso, funcionalidades)
+2. **Requerimientos No Funcionales**: Performance, seguridad, escalabilidad, disponibilidad
+3. **Flujo de Lógica de Negocio**: Diagrama de procesos, reglas de negocio, flujos de datos
+
+MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES:
+1. Saluda al usuario y explica brevemente tu rol
+2. Pregunta sobre el contexto del proyecto (tipo de app, usuarios, escala esperada)
+3. Haz 2-3 preguntas clave para empezar a levantar requerimientos:
+   - ¿Cuáles son las funcionalidades core que el usuario debe poder hacer?
+   - ¿Hay requisitos de performance? (usuarios concurrentes, tiempo de respuesta)
+   - ¿Qué datos se manejarán y cómo fluyen entre módulos?
+4. Mantén un tono profesional pero accesible
+5. NO respondas preguntas off-topic, mantén el foco en el análisis técnico
+
+RESPONDE EN FORMATO JSON:
+{
+  "response": "Tu mensaje conversacional aquí con preguntas específicas"
+}
+`.trim();
+    } else {
+      // Conversación en curso: refinar y construir el plan
+      prompt = `
+Eres un Analista de Sistemas Senior ayudando a crear un Plan de Acción técnico.
+
+CONTEXTO ACTUAL DEL PLAN:
+- Requerimientos Funcionales: ${sanitizedFuncReq || "No definidos aún"}
+- Requerimientos No Funcionales: ${sanitizedNonFuncReq || "No definidos aún"}
+- Flujo de Lógica de Negocio: ${sanitizedBusinessFlow || "No definido aún"}
+
+NUEVO MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES:
+1. Analiza la respuesta del usuario
+2. Identifica qué información nueva aporta para cada sección
+3. Haz preguntas de seguimiento para profundizar en detalles técnicos
+4. Si el usuario da información valiosa, sugiere cómo se vería redactado en el plan
+5. Guía hacia la completitud del plan de acción
+
+CRITERIOS DE COMPLETITUD:
+- Requerimientos Funcionales: Al menos 5-7 casos de uso bien definidos con actores, pre/post condiciones
+- Requerimientos No Funcionales: Performance (tiempos), seguridad (autenticación, HTTPS), escalabilidad (usuarios concurrentes), disponibilidad (uptime)
+- Flujo de Lógica de Negocio: Diagrama o descripción textual de los procesos principales con estados y transiciones
+
+RESPONDE EN FORMATO JSON:
+{
+  "response": "Tu mensaje conversacional con análisis y preguntas de seguimiento"
+}
+
+EJEMPLOS DE BUENAS RESPUESTAS:
+- "Perfecto, con base en lo que me dices, un requerimiento funcional sería: 'RF-001: El usuario debe poder registrarse con email/contraseña, validación por código de 6 dígitos enviado por email'. ¿Te parece que agregue esto al plan?"
+- "Entiendo que esperan 10,000 usuarios concurrentes. Un requerimiento no funcional sería: 'RNF-001: El sistema debe soportar 10,000 usuarios concurrentes con tiempo de respuesta < 200ms en el percentil 95'. ¿Qué tecnologías tienes en mente para lograrlo?"
+`.trim();
+    }
+
+    const model = genAI.getGenerativeModel({
+      model: "models/gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Fallback si no devuelve JSON válido
+      parsed = { response: text };
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => {
-  console.log(`🧩 Ideation agent service running on port ${PORT}`);
+  console.log(`🧩 Ideation & Action Plan agent service running on port ${PORT}`);
 });

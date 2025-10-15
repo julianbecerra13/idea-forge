@@ -77,3 +77,27 @@ export const updateIdea = (id: string, payload: {
   validate_monetization?: boolean;
   completed?: boolean;
 }) => api.put(`/ideation/ideas/${id}`, payload).then((r) => r.data);
+
+// Action Plan API
+export const createActionPlan = (ideaId: string) =>
+  api.post(`/action-plan`, { idea_id: ideaId }).then((r) => r.data);
+
+export const getActionPlan = (id: string) =>
+  api.get(`/action-plan/${id}`).then((r) => r.data);
+
+export const getActionPlanByIdeaId = (ideaId: string) =>
+  api.get(`/action-plan/by-idea/${ideaId}`).then((r) => r.data);
+
+export const updateActionPlan = (id: string, payload: {
+  status?: string;
+  functional_requirements?: string;
+  non_functional_requirements?: string;
+  business_logic_flow?: string;
+  completed?: boolean;
+}) => api.put(`/action-plan/${id}`, payload).then((r) => r.data);
+
+export const getActionPlanMessages = (id: string) =>
+  api.get(`/action-plan/${id}/messages`).then((r) => r.data);
+
+export const postActionPlanChat = (actionPlanId: string, message: string) =>
+  api.post(`/action-plan/agent/chat`, { action_plan_id: actionPlanId, message }).then((r) => r.data);
