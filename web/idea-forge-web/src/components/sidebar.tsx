@@ -21,6 +21,7 @@ type Idea = {
 export function Sidebar() {
   const pathname = usePathname();
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadIdeas();
@@ -28,10 +29,14 @@ export function Sidebar() {
 
   async function loadIdeas() {
     try {
+      setIsLoading(true);
       const data = await listIdeas();
       setIdeas(data || []);
     } catch (error) {
       console.error("Error loading ideas:", error);
+      setIdeas([]);
+    } finally {
+      setIsLoading(false);
     }
   }
 
