@@ -290,11 +290,11 @@ app.post("/action-plan/generate-initial", checkAuth, async (req, res) => {
       return res.status(400).json({ error: "idea is required" });
     }
 
-    // Sanitizar inputs
-    const sanitizedTitle = sanitizeForPrompt(idea.title || "");
-    const sanitizedObjective = sanitizeForPrompt(idea.objective || "");
-    const sanitizedProblem = sanitizeForPrompt(idea.problem || "");
-    const sanitizedScope = sanitizeForPrompt(idea.scope || "");
+    // Sanitizar inputs (Go usa PascalCase en JSON)
+    const sanitizedTitle = sanitizeForPrompt(idea.Title || idea.title || "");
+    const sanitizedObjective = sanitizeForPrompt(idea.Objective || idea.objective || "");
+    const sanitizedProblem = sanitizeForPrompt(idea.Problem || idea.problem || "");
+    const sanitizedScope = sanitizeForPrompt(idea.Scope || idea.scope || "");
 
     const prompt = `
 Eres un Analista de Sistemas Senior. Tienes la siguiente idea de proyecto completada:
