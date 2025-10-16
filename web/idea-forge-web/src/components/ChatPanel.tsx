@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageSquare, Send, Loader2, Bot, User, CheckCircle2, Flag } from "lucide-react";
+import { MessageSquare, Send, Loader2, Bot, User, CheckCircle2, Flag, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -241,14 +241,33 @@ export default function ChatPanel({
 
           <div className="border-t p-4 shrink-0">
             {isCompleted ? (
-              <div className="rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-4 text-center">
-                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-green-600" />
-                <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                  ¡Idea completada!
-                </p>
-                <p className="mt-1 text-xs text-green-700 dark:text-green-300">
-                  Tu idea está lista para el siguiente paso
-                </p>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-4">
+                <div className="text-center mb-3">
+                  <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-green-600" />
+                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                    ¡Idea completada!
+                  </p>
+                  <p className="mt-1 text-xs text-green-700 dark:text-green-300">
+                    Tu idea está lista para el siguiente paso
+                  </p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const { createActionPlan } = await import("@/lib/api");
+                      const plan = await createActionPlan(ideaId);
+                      window.location.href = `/action-plan/${plan.id}`;
+                    } catch (error) {
+                      toast.error("Error al crear plan de acción");
+                      console.error(error);
+                    }
+                  }}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  Ir a Plan de Acción
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </div>
             ) : (
               <>
