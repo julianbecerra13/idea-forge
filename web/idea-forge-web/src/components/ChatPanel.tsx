@@ -6,16 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { MessageSquare, Send, Loader2, Bot, User, CheckCircle2, Flag, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import CompletionModal from "@/components/CompletionModal";
 
 type Message = {
   ID: string;
@@ -316,48 +310,26 @@ export default function ChatPanel({
       </Card>
 
       {/* Modal celebratorio */}
-      <Dialog open={showCompletedModal} onOpenChange={setShowCompletedModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-              <CheckCircle2 className="h-10 w-10 text-green-600" />
-            </div>
-            <DialogTitle className="text-center text-2xl">
-              ¡Idea Completada! 🎉
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Tu idea ha sido estructurada exitosamente con toda la información necesaria.
-              Ahora puedes crear un Plan de Acción para definir requerimientos técnicos.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={async () => {
-                try {
-                  const { createActionPlan } = await import("@/lib/api");
-                  const plan = await createActionPlan(ideaId);
-                  window.location.href = `/action-plan/${plan.id}`;
-                } catch (error) {
-                  toast.error("Error al crear plan de acción");
-                  console.error(error);
-                }
-              }}
-              size="lg"
-              className="w-full"
-            >
-              Ir a Plan de Acción
-            </Button>
-            <Button
-              onClick={() => setShowCompletedModal(false)}
-              size="lg"
-              variant="outline"
-              className="w-full"
-            >
-              Quedarse Aquí
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CompletionModal
+        open={showCompletedModal}
+        onOpenChange={setShowCompletedModal}
+        title="¡Idea Completada! 🎉"
+        description="Tu idea ha sido estructurada exitosamente con toda la información necesaria. Ahora puedes crear un Plan de Acción para definir requerimientos técnicos."
+        actionButton={{
+          label: "Ir a Plan de Acción",
+          onClick: async () => {
+            try {
+              const { createActionPlan } = await import("@/lib/api");
+              const plan = await createActionPlan(ideaId);
+              window.location.href = `/action-plan/${plan.id}`;
+            } catch (error) {
+              toast.error("Error al crear plan de acción");
+              console.error(error);
+            }
+          },
+        }}
+        closeLabel="Quedarse Aquí"
+      />
     </>
   );
 }

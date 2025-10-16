@@ -50,23 +50,6 @@ export default function ActionPlanEditor({
     }
   };
 
-  const handleComplete = async () => {
-    try {
-      setSaving(true);
-      await updateActionPlan(plan.id, {
-        completed: true,
-        status: "completed",
-      });
-      toast.success("¡Plan de acción completado!");
-      onUpdate();
-    } catch (error) {
-      toast.error("Error al completar el plan");
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const hasUnsavedChanges =
     functionalReq !== (plan.functional_requirements || "") ||
     nonFunctionalReq !== (plan.non_functional_requirements || "") ||
@@ -87,29 +70,16 @@ export default function ActionPlanEditor({
             <span className="text-xs text-muted-foreground">Cambios sin guardar</span>
           )}
         </div>
-        <div className="flex gap-2">
-          {hasUnsavedChanges && (
-            <Button
-              onClick={handleSave}
-              disabled={saving || plan.completed}
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Guardar Cambios
-            </Button>
-          )}
-          {!plan.completed && (
-            <Button
-              onClick={handleComplete}
-              disabled={saving}
-              variant="default"
-              className="gap-2"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Marcar como Completado
-            </Button>
-          )}
-        </div>
+        {hasUnsavedChanges && (
+          <Button
+            onClick={handleSave}
+            disabled={saving || plan.completed}
+            className="gap-2"
+          >
+            <Save className="h-4 w-4" />
+            Guardar Cambios
+          </Button>
+        )}
       </div>
 
       {/* Requerimientos Funcionales */}

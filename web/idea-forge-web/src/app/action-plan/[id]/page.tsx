@@ -92,7 +92,11 @@ export default function ActionPlanPage({ params }: { params: Params }) {
 
         {/* Panel Derecho: Chat con Agente */}
         <div className="h-full overflow-hidden">
-          <ActionPlanChat actionPlanId={plan.id} onPlanUpdate={loadPlan} />
+          <ActionPlanChat
+            actionPlanId={plan.id}
+            onPlanUpdate={loadPlan}
+            isCompleted={plan.completed}
+          />
         </div>
       </div>
     </div>
