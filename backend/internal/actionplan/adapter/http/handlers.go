@@ -318,9 +318,8 @@ func (h *Handlers) chat(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) sendInitialAgentMessage(ctx context.Context, plan *domain.ActionPlan, ideaID uuid.UUID) error {
-	// For now, send a generic initial message
-	// In production, you'd fetch the idea details and create a richer context
-	initialPrompt := fmt.Sprintf("He completado mi idea y quiero crear un plan de acción detallado. El ID de la idea es %s. ¿Cómo puedes ayudarme a levantar los requerimientos funcionales, no funcionales y el flujo de lógica de negocio?", ideaID)
+	// Crear un mensaje natural del agente presentándose y explicando el plan generado
+	initialPrompt := "Acabo de llegar a este módulo de Plan de Acción. Ya veo que generaste contenido inicial en las tres secciones. ¿Podrías presentarte brevemente, explicarme qué contiene cada sección que generaste, y preguntarme si hay algo que quiera ajustar o mejorar?"
 
 	response, err := h.callGenkitAgent(ctx, plan, initialPrompt)
 	if err != nil {
