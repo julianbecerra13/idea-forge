@@ -367,6 +367,12 @@ func (h *Handlers) callGenkitAgent(ctx context.Context, plan *domain.ActionPlan,
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	// Add Genkit auth token if configured
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+	if genkitToken != "" {
+		req.Header.Set("Authorization", "Bearer "+genkitToken)
+	}
+
 	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
 		return "", err
@@ -407,6 +413,12 @@ func (h *Handlers) generateAndSaveInitialPlan(ctx context.Context, plan *domain.
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	// Add Genkit auth token if configured
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+	if genkitToken != "" {
+		req.Header.Set("Authorization", "Bearer "+genkitToken)
+	}
 
 	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
