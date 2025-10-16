@@ -13,12 +13,16 @@ import (
 
 	"github.com/dark/idea-forge/internal/actionplan/domain"
 	"github.com/dark/idea-forge/internal/actionplan/usecase"
+	ideadomain "github.com/dark/idea-forge/internal/ideation/domain"
 	"github.com/google/uuid"
 )
 
 type Handlers struct {
-	Usecase    *usecase.ActionPlanUsecase
-	HTTPClient *http.Client
+	Usecase     *usecase.ActionPlanUsecase
+	HTTPClient  *http.Client
+	IdeaUsecase interface {
+		Execute(ctx context.Context, id uuid.UUID) (*ideadomain.Idea, error)
+	}
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
@@ -73,17 +77,30 @@ func (h *Handlers) createActionPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Obtener la idea para generar el plan inicial
+	idea, err := h.IdeaUsecase.Execute(r.Context(), ideaID)
+	if err != nil {
+		http.Error(w, "idea not found", http.StatusNotFound)
+		return
+	}
+
 	plan, err := h.Usecase.CreateActionPlan(r.Context(), ideaID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
-	// Send initial agent message
+	// Generar contenido inicial y enviar mensaje del agente en paralelo
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
 
+		// Generar plan inicial con IA
+		if err := h.generateAndSaveInitialPlan(ctx, plan, idea); err != nil {
+			log.Printf("error generating initial plan: %v", err)
+		}
+
+		// Enviar mensaje inicial del agente
 		if err := h.sendInitialAgentMessage(ctx, plan, ideaID); err != nil {
 			log.Printf("error sending initial action plan message: %v", err)
 		}
@@ -358,6 +375,54 @@ func (h *Handlers) callGenkitAgent(ctx context.Context, plan *domain.ActionPlan,
 	}
 
 	return result.Response, nil
+}
+
+func (h *Handlers) generateAndSaveInitialPlan(ctx context.Context, plan *domain.ActionPlan, idea *ideadomain.Idea) error {
+	genkitURL := os.Getenv("GENKIT_BASE_URL")
+	if genkitURL == "" {
+		genkitURL = "http://localhost:3001"
+	}
+
+	payload := map[string]interface{}{
+		"idea": idea,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, genkitURL+"/action-plan/generate-initial", bytes.NewReader(jsonData))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("genkit returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		FunctionalRequirements    string `json:"functional_requirements"`
+		NonFunctionalRequirements string `json:"non_functional_requirements"`
+		BusinessLogicFlow         string `json:"business_logic_flow"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+
+	// Actualizar el plan con el contenido generado
+	plan.FunctionalRequirements = result.FunctionalRequirements
+	plan.NonFunctionalRequirements = result.NonFunctionalRequirements
+	plan.BusinessLogicFlow = result.BusinessLogicFlow
+
+	return h.Usecase.UpdateActionPlan(ctx, plan)
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, status int) {

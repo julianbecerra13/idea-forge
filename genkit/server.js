@@ -282,6 +282,81 @@ EJEMPLOS DE BUENAS RESPUESTAS:
   }
 });
 
+app.post("/action-plan/generate-initial", checkAuth, async (req, res) => {
+  try {
+    const { idea } = req.body || {};
+
+    if (!idea) {
+      return res.status(400).json({ error: "idea is required" });
+    }
+
+    // Sanitizar inputs
+    const sanitizedTitle = sanitizeForPrompt(idea.title || "");
+    const sanitizedObjective = sanitizeForPrompt(idea.objective || "");
+    const sanitizedProblem = sanitizeForPrompt(idea.problem || "");
+    const sanitizedScope = sanitizeForPrompt(idea.scope || "");
+
+    const prompt = `
+Eres un Analista de Sistemas Senior. Tienes la siguiente idea de proyecto completada:
+
+IDEA:
+- Título: "${sanitizedTitle}"
+- Objetivo: "${sanitizedObjective}"
+- Problema: "${sanitizedProblem}"
+- Alcance: "${sanitizedScope}"
+
+Tu tarea es generar un Plan de Acción técnico inicial con 3 secciones:
+
+1. **Requerimientos Funcionales**: Lista numerada (RF-001, RF-002...) de casos de uso principales que el sistema debe cumplir
+2. **Requerimientos No Funcionales**: Lista numerada (RNF-001, RNF-002...) con performance, seguridad, escalabilidad, disponibilidad
+3. **Flujo de Lógica de Negocio**: Descripción textual de los procesos principales paso a paso
+
+INSTRUCCIONES:
+- Sé específico y técnico
+- Usa el formato RF-XXX y RNF-XXX
+- Define al menos 5 requerimientos funcionales
+- Define al menos 4 requerimientos no funcionales
+- Describe 2-3 flujos de negocio principales
+- Basa todo en la información de la idea
+- Si falta información, haz suposiciones razonables basadas en el contexto
+
+RESPONDE EN FORMATO JSON:
+{
+  "functional_requirements": "RF-001: ...\nRF-002: ...\n...",
+  "non_functional_requirements": "RNF-001: ...\nRNF-002: ...\n...",
+  "business_logic_flow": "FLUJO 1:\n1. ...\n2. ...\n\nFLUJO 2:\n..."
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "models/gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.8,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = {
+        functional_requirements: "",
+        non_functional_requirements: "",
+        business_logic_flow: ""
+      };
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => {

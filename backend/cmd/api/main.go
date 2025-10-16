@@ -66,8 +66,9 @@ func main() {
 	actionPlanRepo := actionplanpg.NewRepo(sqlDB)
 	actionPlanUsecase := actionplanuc.NewActionPlanUsecase(actionPlanRepo)
 	actionPlanHandlers := &actionplanhttp.Handlers{
-		Usecase:    actionPlanUsecase,
-		HTTPClient: httpClient,
+		Usecase:     actionPlanUsecase,
+		HTTPClient:  httpClient,
+		IdeaUsecase: get, // Para obtener la idea al crear el plan
 	}
 	actionPlanHandlers.Register(mux)
 
