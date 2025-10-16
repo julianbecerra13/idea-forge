@@ -1,9 +1,10 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { getIdea } from "@/lib/api";
+import { getIdea, getActionPlanByIdeaId } from "@/lib/api";
 import IdeaCards from "@/components/IdeaCards";
 import ChatPanel from "@/components/ChatPanel";
+import ModuleStepper from "@/components/modules/ModuleStepper";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -24,15 +25,32 @@ type Idea = {
   CreatedAt: string;
 };
 
+type ActionPlan = {
+  id: string;
+  completed: boolean;
+};
+
 export default function IdeationPage({ params }: { params: Params }) {
   const { id } = use(params);
   const [idea, setIdea] = useState<Idea | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadIdea = async () => {
     try {
       const data = await getIdea(id);
       setIdea(data);
+
+      // Si la idea está completada, buscar el action plan
+      if (data.Completed) {
+        try {
+          const planData = await getActionPlanByIdeaId(id);
+          setActionPlan(planData);
+        } catch (error) {
+          // No hay action plan aún
+          setActionPlan(null);
+        }
+      }
     } catch (error) {
       console.error("Error loading idea:", error);
     } finally {
@@ -59,9 +77,18 @@ export default function IdeationPage({ params }: { params: Params }) {
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      {/* Module Stepper */}
+      <ModuleStepper
+        ideaId={idea.ID}
+        actionPlanId={actionPlan?.id}
+        currentModule={1}
+        ideaCompleted={idea.Completed}
+        actionPlanCompleted={actionPlan?.completed}
+      />
+
       {/* Layout Desktop: 2 paneles */}
-      <div className="hidden h-[calc(100vh-8rem)] gap-6 lg:grid lg:grid-cols-[1fr_380px]">
+      <div className="hidden h-[calc(100vh-16rem)] gap-6 lg:grid lg:grid-cols-[1fr_380px]">
         {/* Panel Izquierdo: Cards */}
         <div className="space-y-6 overflow-auto">
           <div className="space-y-2">
@@ -119,6 +146,6 @@ export default function IdeationPage({ params }: { params: Params }) {
           </SheetContent>
         </Sheet>
       </div>
-    </>
+    </div>
   );
 }

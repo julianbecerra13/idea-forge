@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { getActionPlan } from "@/lib/api";
 import ActionPlanEditor from "@/components/ActionPlanEditor";
 import ActionPlanChat from "@/components/ActionPlanChat";
+import ModuleStepper from "@/components/modules/ModuleStepper";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import PageHeader from "@/components/common/PageHeader";
@@ -58,7 +59,16 @@ export default function ActionPlanPage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="h-full space-y-6">
+    <div className="h-full space-y-4">
+      {/* Module Stepper */}
+      <ModuleStepper
+        ideaId={plan.idea_id}
+        actionPlanId={plan.id}
+        currentModule={2}
+        ideaCompleted={true} // Si existe action plan, la idea está completada
+        actionPlanCompleted={plan.completed}
+      />
+
       {/* Header */}
       <PageHeader
         title="Plan de Acción"
@@ -69,7 +79,7 @@ export default function ActionPlanPage({ params }: { params: Params }) {
       />
 
       {/* Layout: Editor + Chat */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px] h-[calc(100vh-12rem)]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px] h-[calc(100vh-20rem)]">
         {/* Panel Izquierdo: Editor de Plan */}
         <div className="overflow-auto">
           <ActionPlanEditor plan={plan} onUpdate={loadPlan} />
