@@ -1,13 +1,15 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { getIdea } from "@/lib/api";
+import { getIdea, getActionPlanByIdeaId } from "@/lib/api";
 import IdeaCards from "@/components/IdeaCards";
 import ChatPanel from "@/components/ChatPanel";
+import ModuleStepper from "@/components/modules/ModuleStepper";
+import LoadingState from "@/components/common/LoadingState";
+import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { MessageSquare, Lightbulb } from "lucide-react";
 
 type Params = Promise<{ id: string }>;
 
@@ -23,15 +25,32 @@ type Idea = {
   CreatedAt: string;
 };
 
+type ActionPlan = {
+  id: string;
+  completed: boolean;
+};
+
 export default function IdeationPage({ params }: { params: Params }) {
   const { id } = use(params);
   const [idea, setIdea] = useState<Idea | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadIdea = async () => {
     try {
       const data = await getIdea(id);
       setIdea(data);
+
+      // Si la idea está completada, buscar el action plan
+      if (data.Completed) {
+        try {
+          const planData = await getActionPlanByIdeaId(id);
+          setActionPlan(planData);
+        } catch (error) {
+          // No hay action plan aún
+          setActionPlan(null);
+        }
+      }
     } catch (error) {
       console.error("Error loading idea:", error);
     } finally {
@@ -44,34 +63,33 @@ export default function IdeationPage({ params }: { params: Params }) {
   }, [id]);
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-      </div>
-    );
+    return <LoadingState variant="cards" count={4} />;
   }
 
   if (!idea) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">Idea no encontrada</p>
-      </div>
+      <EmptyState
+        icon={Lightbulb}
+        title="Idea no encontrada"
+        description="Verifica que el ID sea correcto"
+      />
     );
   }
 
   return (
-    <>
-      {/* Layout Desktop: 3 paneles */}
-      <div className="hidden h-[calc(100vh-8rem)] gap-6 lg:grid lg:grid-cols-[1fr_380px]">
-        {/* Panel Central: Cards */}
+    <div className="space-y-4">
+      {/* Module Stepper */}
+      <ModuleStepper
+        ideaId={idea.ID}
+        actionPlanId={actionPlan?.id}
+        currentModule={1}
+        ideaCompleted={idea.Completed}
+        actionPlanCompleted={actionPlan?.completed}
+      />
+
+      {/* Layout Desktop: 2 paneles */}
+      <div className="hidden h-[calc(100vh-16rem)] gap-6 lg:grid lg:grid-cols-[1fr_380px]">
+        {/* Panel Izquierdo: Cards */}
         <div className="space-y-6 overflow-auto">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">{idea.Title}</h1>
@@ -128,6 +146,6 @@ export default function IdeationPage({ params }: { params: Params }) {
           </SheetContent>
         </Sheet>
       </div>
-    </>
+    </div>
   );
 }

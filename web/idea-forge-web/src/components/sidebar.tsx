@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Lightbulb, Home, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useEffect, useState } from "react";
-import { listIdeas } from "@/lib/api";
+import { listIdeas, getActionPlanByIdeaId, getArchitectureByActionPlanId } from "@/lib/api";
 
 type Idea = {
   ID: string;
@@ -20,9 +20,11 @@ type Idea = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Importar también getArchitectureByActionPlanId
   useEffect(() => {
     loadIdeas();
   }, []);
@@ -39,6 +41,45 @@ export function Sidebar() {
       setIsLoading(false);
     }
   }
+
+  // Función para determinar la última URL del proyecto
+  const getProjectUrl = async (idea: Idea) => {
+    // Si la idea NO está completada, ir a ideación
+    if (!idea.Completed) {
+      return `/ideation/${idea.ID}`;
+    }
+
+    // Si la idea está completada, buscar el action plan
+    try {
+      const actionPlan = await getActionPlanByIdeaId(idea.ID);
+
+      if (actionPlan) {
+        // Si el action plan está completado, buscar arquitectura
+        if (actionPlan.completed) {
+          try {
+            const architecture = await getArchitectureByActionPlanId(actionPlan.id);
+            if (architecture) {
+              return `/architecture/${architecture.id}`;
+            }
+          } catch (error) {
+            // No hay arquitectura aún, ir a action plan
+          }
+        }
+        // Si hay action plan, ir ahí
+        return `/action-plan/${actionPlan.id}`;
+      }
+    } catch (error) {
+      // No hay action plan, volver a ideación
+    }
+
+    // Por defecto, ir a ideación
+    return `/ideation/${idea.ID}`;
+  };
+
+  const handleProjectClick = async (idea: Idea) => {
+    const url = await getProjectUrl(idea);
+    router.push(url);
+  };
 
   const links = [
     { href: "/", label: "Inicio", icon: Home },
@@ -92,27 +133,30 @@ export function Sidebar() {
                   </p>
                 ) : (
                   ideas.map((idea) => {
-                    const isActive = pathname === `/ideation/${idea.ID}`;
+                    const isActive =
+                      pathname.includes(`/ideation/${idea.ID}`) ||
+                      pathname.includes(`action-plan`) && pathname.includes(idea.ID);
+
                     return (
-                      <Link key={idea.ID} href={`/ideation/${idea.ID}`}>
-                        <Button
-                          variant={isActive ? "secondary" : "ghost"}
-                          className={cn(
-                            "w-full justify-start gap-2 h-auto py-2",
-                            isActive && "bg-secondary"
-                          )}
-                        >
-                          <Lightbulb className="h-3.5 w-3.5 shrink-0" />
-                          <div className="flex-1 text-left overflow-hidden">
-                            <p className="text-xs font-medium truncate">
-                              {idea.Title}
-                            </p>
-                          </div>
-                          {idea.Completed && (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                          )}
-                        </Button>
-                      </Link>
+                      <Button
+                        key={idea.ID}
+                        onClick={() => handleProjectClick(idea)}
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start gap-2 h-auto py-2",
+                          isActive && "bg-secondary"
+                        )}
+                      >
+                        <Lightbulb className="h-3.5 w-3.5 shrink-0" />
+                        <div className="flex-1 text-left overflow-hidden">
+                          <p className="text-xs font-medium truncate">
+                            {idea.Title}
+                          </p>
+                        </div>
+                        {idea.Completed && (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        )}
+                      </Button>
                     );
                   })
                 )}

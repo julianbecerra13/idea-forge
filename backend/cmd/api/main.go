@@ -12,6 +12,14 @@ import (
 	ideationpg "github.com/dark/idea-forge/internal/ideation/adapter/pg"
 	ideationhttp "github.com/dark/idea-forge/internal/ideation/adapter/http"
 	ideationuc "github.com/dark/idea-forge/internal/ideation/usecase"
+
+	actionplanpg "github.com/dark/idea-forge/internal/actionplan/adapter/pg"
+	actionplanhttp "github.com/dark/idea-forge/internal/actionplan/adapter/http"
+	actionplanuc "github.com/dark/idea-forge/internal/actionplan/usecase"
+
+	architecturepg "github.com/dark/idea-forge/internal/architecture/adapter/pg"
+	architecturehttp "github.com/dark/idea-forge/internal/architecture/adapter/http"
+	architectureuc "github.com/dark/idea-forge/internal/architecture/usecase"
 )
 
 func main() {
@@ -46,7 +54,9 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	handlers := &ideationhttp.Handlers{
+
+	// Ideation handlers
+	ideationHandlers := &ideationhttp.Handlers{
 		Create:     create,
 		Get:        get,
 		List:       list,
@@ -54,7 +64,28 @@ func main() {
 		Append:     appendMsg,
 		HTTPClient: httpClient,
 	}
-	handlers.Register(mux)
+	ideationHandlers.Register(mux)
+
+	// Action Plan handlers
+	actionPlanRepo := actionplanpg.NewRepo(sqlDB)
+	actionPlanUsecase := actionplanuc.NewActionPlanUsecase(actionPlanRepo)
+	actionPlanHandlers := &actionplanhttp.Handlers{
+		Usecase:     actionPlanUsecase,
+		HTTPClient:  httpClient,
+		IdeaUsecase: get, // Para obtener la idea al crear el plan
+	}
+	actionPlanHandlers.Register(mux)
+
+	// Architecture handlers
+	architectureRepo := architecturepg.NewRepo(sqlDB)
+	architectureUsecase := architectureuc.NewArchitectureUsecase(architectureRepo)
+	architectureHandlers := &architecturehttp.Handlers{
+		Usecase:           architectureUsecase,
+		HTTPClient:        httpClient,
+		ActionPlanUsecase: actionPlanUsecase,
+		IdeaUsecase:       get,
+	}
+	architectureHandlers.Register(mux)
 
 	srv := &http.Server{
 		Addr:              ":8080",

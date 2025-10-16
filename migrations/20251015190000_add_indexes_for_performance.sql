@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 -- Agregar índices para mejorar performance de queries
 
 -- Índice simple en idea_id para filtrado rápido
@@ -15,3 +17,12 @@ ON ideation_messages(idea_id, created_at);
 -- Índice para ideas ordenadas por fecha de creación
 CREATE INDEX IF NOT EXISTS idx_ideation_ideas_created_at
 ON ideation_ideas(created_at DESC);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP INDEX IF EXISTS idx_ideation_messages_idea_id;
+DROP INDEX IF EXISTS idx_ideation_messages_created_at;
+DROP INDEX IF EXISTS idx_ideation_messages_idea_created;
+DROP INDEX IF EXISTS idx_ideation_ideas_created_at;
+-- +goose StatementEnd
