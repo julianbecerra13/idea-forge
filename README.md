@@ -1,10 +1,11 @@
 # 🚀 Idea Forge
 
-**Idea Forge** es una plataforma inteligente para estructurar y validar ideas de proyectos de software mediante conversación con un agente de IA especializado en ideación.
+**Idea Forge** es una plataforma inteligente impulsada por IA para estructurar, planificar y diseñar proyectos de software completos. Desde la ideación inicial hasta la arquitectura técnica, Idea Forge te guía a través de un proceso conversacional con agentes de IA especializados.
 
 ## 📋 Tabla de Contenidos
 
 - [Características](#-características)
+- [Módulos del Sistema](#-módulos-del-sistema)
 - [Arquitectura](#-arquitectura)
 - [Requisitos Previos](#-requisitos-previos)
 - [Instalación](#-instalación)
@@ -14,69 +15,257 @@
 - [Estructura del Proyecto](#-estructura-del-proyecto)
 - [Tecnologías](#-tecnologías)
 - [API Endpoints](#-api-endpoints)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
 ## ✨ Características
 
-### 🤖 Agente de Ideación Inteligente
-- **Conversación Guiada**: El agente inicia automáticamente con preguntas estratégicas para entender tu proyecto
-- **Actualización Automática**: Analiza tus respuestas y actualiza los campos de la idea en tiempo real
-- **Detección de Completitud**: Evalúa objetivamente cuándo una idea está bien estructurada con criterios específicos
-- **Guardrails**: Mantiene el enfoque en la ideación del proyecto, rechazando preguntas off-topic
+### 🤖 Agentes de IA Especializados
 
-### 📊 Gestión de Ideas
-- **Campos Estructurados**: Título, Objetivo, Problema, Alcance
-- **Validaciones**: Opciones para validar competencia y monetización
-- **Historial**: Visualiza todos tus proyectos en el sidebar con indicador de completitud
-- **Estados**: Ideas en progreso (🔵) vs completadas (✅)
+**3 agentes diferentes** que te guían en cada fase:
 
-### 🎨 Interfaz Moderna
-- **Diseño Responsivo**: Desktop (3 paneles), tablet, y móvil
+1. **Agente de Ideación** 💡
+   - Conversación guiada con preguntas estratégicas
+   - Actualización automática de campos en tiempo real
+   - Detección inteligente de completitud
+   - Guardrails para mantener enfoque
+
+2. **Analista de Sistemas** 📋
+   - Levantamiento de requerimientos funcionales/no funcionales
+   - Diseño de flujos de lógica de negocio
+   - Análisis de performance y escalabilidad
+
+3. **Arquitecto de Software** 🏗️
+   - Generación de historias de usuario
+   - Diseño de base de datos (SQL/NoSQL/Híbrida)
+   - Recomendación de stack tecnológico
+   - Patrones arquitectónicos (MVC, Clean, Microservicios)
+
+### 📊 Sistema de Módulos Progresivos
+
+Navega fluidamente entre 3 módulos interconectados:
+
+```
+Módulo 1: Ideación → Módulo 2: Plan de Acción → Módulo 3: Arquitectura
+    💡                    📋                        🏗️
+```
+
+- **Progress Stepper**: Visualiza en qué módulo estás
+- **Navegación Inteligente**: El sidebar te lleva automáticamente al último módulo activo
+- **Gating**: Solo puedes avanzar al siguiente módulo si completaste el anterior
+
+### 🎨 Interfaz Moderna y Responsiva
+
+- **Diseño Adaptable**: Desktop (2-3 paneles), tablet, móvil
 - **Tema Oscuro/Claro**: Cambio dinámico con persistencia
 - **shadcn/ui**: Componentes modernos y accesibles
-- **Navegación Intuitiva**: Sidebar fijo con historial de proyectos
+- **Loading States**: Feedback visual en todas las operaciones
+- **Chat Contextual**: Panel lateral o modal según dispositivo
 
-### 💬 Chat en Tiempo Real
-- **Panel Lateral**: Chat siempre visible en desktop
-- **Modal Móvil**: Sheet deslizable en dispositivos pequeños
-- **Auto-scroll**: Desplazamiento automático a nuevos mensajes
-- **Indicadores**: Loading states, typing indicators, timestamps
+### 💾 Persistencia Completa
+
+- **PostgreSQL**: Base de datos robusta con migrations
+- **Clean Architecture**: Backend Go con separación de capas
+- **Context Propagation**: Cada módulo usa información de los anteriores
+
+---
+
+## 🎯 Módulos del Sistema
+
+### Módulo 1: Ideación 💡
+
+**Objetivo**: Estructurar y validar tu idea de proyecto
+
+**Campos:**
+- Título del proyecto
+- Objetivo (con métricas/KPIs)
+- Problema que resuelve (usuario objetivo + dolor)
+- Alcance del MVP (funcionalidades + tecnologías)
+
+**Funcionalidades:**
+- Chat con agente de ideación
+- Actualización automática de campos
+- Validaciones opcionales (competencia, monetización)
+- Detección de completitud con criterios estrictos
+
+**Salida**: Idea estructurada lista para planificación
+
+---
+
+### Módulo 2: Plan de Acción 📋
+
+**Objetivo**: Definir requerimientos técnicos y flujos de negocio
+
+**Campos:**
+- Requerimientos Funcionales (RF-001, RF-002...)
+- Requerimientos No Funcionales (RNF-001: Performance, Seguridad...)
+- Flujo de Lógica de Negocio (diagramas, procesos)
+- Tecnologías propuestas
+- Riesgos identificados
+- Timeline estimado
+
+**Funcionalidades:**
+- Chat con analista de sistemas
+- Generación automática de contenido inicial basado en la Idea
+- Edición manual de todos los campos
+- Exportable como documento técnico
+
+**Salida**: Plan de acción técnico completo
+
+---
+
+### Módulo 3: Arquitectura y Datos 🏗️
+
+**Objetivo**: Diseñar la arquitectura técnica del sistema
+
+**Campos:**
+- **Historias de Usuario** (US-001, US-002...) en formato estándar
+- **Tipo de Base de Datos** (Relacional/NoSQL/Híbrida) con justificación
+- **Esquema de Base de Datos** (SQL DDL, JSON schemas)
+- **Entidades y Relaciones** (diagramas ER, reglas de negocio)
+- **Stack Tecnológico** (Frontend, Backend, DB, Infraestructura)
+- **Patrón de Arquitectura** (MVC, Clean, Hexagonal, Microservicios)
+- **Arquitectura del Sistema** (capas, seguridad, escalabilidad)
+
+**Funcionalidades:**
+- Chat con arquitecto de software senior
+- Generación automática usando contexto de Idea + Plan de Acción
+- Recomendaciones basadas en mejores prácticas
+- Edición y refinamiento colaborativo con IA
+
+**Salida**: Arquitectura técnica lista para implementación
 
 ---
 
 ## 🏗️ Arquitectura
 
+### Diagrama del Sistema
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Next.js 15)                    │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐              │
+│  │ Ideación │→ │Plan Acción│→│ Arquitectura │              │
+│  └──────────┘  └──────────┘  └──────────────┘              │
+└─────────────────────────────────────────────────────────────┘
+                            ↓ HTTP
+┌─────────────────────────────────────────────────────────────┐
+│              Backend API (Go - Clean Architecture)           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐              │
+│  │ Ideation │  │ActionPlan│  │Architecture  │              │
+│  │  Module  │  │  Module  │  │   Module     │              │
+│  └──────────┘  └──────────┘  └──────────────┘              │
+│       ↓              ↓                ↓                      │
+│  PostgreSQL (ideas, action_plans, architectures, messages)  │
+└─────────────────────────────────────────────────────────────┘
+                            ↓ HTTP
+┌─────────────────────────────────────────────────────────────┐
+│           Genkit AI Agents (Node.js + Gemini 2.0)           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐              │
+│  │ Ideation │  │  Systems │  │  Software    │              │
+│  │  Agent   │  │ Analyst  │  │  Architect   │              │
+│  └──────────┘  └──────────┘  └──────────────┘              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Estructura de Directorios
+
 ```
 idea-forge/
-├── backend/              # Go API (Clean Architecture)
-│   ├── cmd/api/         # Punto de entrada
+├── backend/                    # Go API (Clean Architecture)
+│   ├── cmd/api/               # Punto de entrada HTTP server
 │   ├── internal/
-│   │   ├── db/          # PostgreSQL connection
-│   │   └── ideation/    # Módulo de ideación
-│   │       ├── domain/      # Entidades
-│   │       ├── port/        # Interfaces
-│   │       ├── usecase/     # Lógica de negocio
-│   │       └── adapter/     # Implementaciones
-│   │           ├── http/    # Handlers HTTP
-│   │           └── pg/      # Repositorio PostgreSQL
-├── genkit/              # Agente IA (Genkit + Gemini)
-│   └── server.js        # Servidor Express con prompts
-├── web/                 # Frontend Next.js 15
-│   └── idea-forge-web/
-│       ├── src/
-│       │   ├── app/         # App Router pages
-│       │   ├── components/  # React components
-│       │   └── lib/         # Utilities y API client
-└── migrations/          # SQL migrations
+│   │   ├── db/                # PostgreSQL connection pool
+│   │   ├── ideation/          # Módulo 1: Ideación
+│   │   │   ├── domain/        # Entidades (Idea, Message)
+│   │   │   ├── port/          # Interfaces (Repository)
+│   │   │   ├── usecase/       # Lógica de negocio
+│   │   │   └── adapter/
+│   │   │       ├── http/      # HTTP handlers
+│   │   │       └── pg/        # PostgreSQL implementation
+│   │   ├── actionplan/        # Módulo 2: Plan de Acción
+│   │   │   ├── domain/        # ActionPlan, Message
+│   │   │   ├── port/
+│   │   │   ├── usecase/
+│   │   │   └── adapter/
+│   │   │       ├── http/
+│   │   │       └── pg/
+│   │   └── architecture/      # Módulo 3: Arquitectura
+│   │       ├── domain/        # Architecture, Message
+│   │       ├── port/
+│   │       ├── usecase/
+│   │       └── adapter/
+│   │           ├── http/
+│   │           └── pg/
+│   ├── go.mod
+│   └── go.sum
+│
+├── genkit/                    # Agentes IA (Genkit + Gemini)
+│   ├── server.js              # Express server principal
+│   ├── architecture-agent.js  # (opcional) Agente separado
+│   ├── package.json
+│   └── .env
+│
+├── web/idea-forge-web/        # Frontend (Next.js 15)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── ideation/
+│   │   │   │   ├── page.tsx           # Crear idea
+│   │   │   │   └── [id]/page.tsx      # Detalle idea
+│   │   │   ├── action-plan/
+│   │   │   │   └── [id]/page.tsx      # Plan de acción
+│   │   │   └── architecture/
+│   │   │       └── [id]/page.tsx      # Arquitectura
+│   │   ├── components/
+│   │   │   ├── modules/
+│   │   │   │   ├── AIChat.tsx         # Chat reutilizable
+│   │   │   │   └── ModuleStepper.tsx  # Progress bar
+│   │   │   ├── common/
+│   │   │   │   ├── LoadingState.tsx
+│   │   │   │   ├── EmptyState.tsx
+│   │   │   │   └── PageHeader.tsx
+│   │   │   ├── sidebar.tsx
+│   │   │   ├── ChatPanel.tsx
+│   │   │   ├── ActionPlanEditor.tsx
+│   │   │   ├── ActionPlanChat.tsx
+│   │   │   ├── ArchitectureEditor.tsx
+│   │   │   └── ArchitectureChat.tsx
+│   │   └── lib/
+│   │       ├── api.ts         # Axios client + endpoints
+│   │       └── utils.ts
+│   └── package.json
+│
+└── migrations/                # SQL migrations (goose)
+    ├── 20250113000000_init.sql
+    ├── 20251013170000_add_completed_to_ideas.sql
+    ├── 20251015190000_add_indexes_for_performance.sql
+    ├── 20251015220000_create_action_plans.sql
+    ├── 20251016230000_create_architecture_module.sql
+    └── 20251016235900_fix_architecture_field_types.sql
 ```
 
-### Flujo de Datos
+### Flujo de Datos Completo
 
 ```
-1. Usuario crea idea → Backend guarda → Genkit genera mensaje inicial
-2. Usuario responde → Backend envía a Genkit → Genkit analiza y actualiza
-3. Genkit detecta completitud → Backend marca como completa → Frontend muestra modal
+1. Usuario crea Idea (Módulo 1)
+   → Backend guarda en PostgreSQL
+   → Genkit genera mensaje inicial de bienvenida
+   → Usuario conversa con agente
+   → Agente actualiza campos automáticamente
+   → Marca como completada cuando cumple criterios
+
+2. Usuario completa Idea → Modal "Ir a Plan de Acción"
+   → Backend crea ActionPlan vinculado a Idea
+   → Genkit usa contexto de Idea para generar contenido inicial
+   → Usuario refina con analista de sistemas
+   → Marca como completado
+
+3. Usuario completa Plan → Modal "Ir a Arquitectura"
+   → Backend crea Architecture vinculado a ActionPlan
+   → Genkit usa contexto de Idea + ActionPlan
+   → Genera 7 secciones técnicas automáticamente
+   → Usuario refina con arquitecto de software
 ```
 
 ---
@@ -86,7 +275,7 @@ idea-forge/
 - **Node.js**: v18+ ([Descargar](https://nodejs.org/))
 - **Go**: v1.21+ ([Descargar](https://go.dev/))
 - **PostgreSQL**: v14+ ([Descargar](https://www.postgresql.org/))
-- **Docker** (opcional): Para correr PostgreSQL en contenedor
+- **Docker** (opcional): Para PostgreSQL en contenedor
 - **Google API Key**: Para Gemini 2.0 Flash ([Obtener](https://ai.google.dev/))
 
 ---
@@ -96,44 +285,54 @@ idea-forge/
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/idea-forge.git
+git clone https://github.com/julianbecerra13/idea-forge.git
 cd idea-forge
 ```
 
 ### 2. Configurar Base de Datos
 
-#### Opción A: Docker (Recomendado)
+#### Opción A: Docker Compose (Recomendado)
+
+```bash
+docker-compose up -d
+# ✓ PostgreSQL corriendo en localhost:5432
+```
+
+#### Opción B: Docker Manual
 
 ```bash
 docker run --name idea_forge_db \
   -e POSTGRES_USER=app \
-  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_PASSWORD=app \
   -e POSTGRES_DB=idea_forge \
   -p 5432:5432 \
-  -d postgres:15
+  -d postgres:16
 ```
 
-#### Opción B: PostgreSQL Local
+#### Opción C: PostgreSQL Local
 
 ```bash
 # Crear base de datos
 createdb -U postgres idea_forge
 
 # Crear usuario
-psql -U postgres -c "CREATE USER app WITH PASSWORD 'secret';"
+psql -U postgres -c "CREATE USER app WITH PASSWORD 'app';"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE idea_forge TO app;"
 ```
 
 ### 3. Aplicar Migraciones
 
 ```bash
-# Si usas Docker
+# Con Docker
 docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20250113000000_init.sql
 docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251013170000_add_completed_to_ideas.sql
+docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251015190000_add_indexes_for_performance.sql
+docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251015220000_create_action_plans.sql
+docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251016230000_create_architecture_module.sql
+docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251016235900_fix_architecture_field_types.sql
 
-# Si usas PostgreSQL local
-psql -U app -d idea_forge < migrations/20250113000000_init.sql
-psql -U app -d idea_forge < migrations/20251013170000_add_completed_to_ideas.sql
+# Con PostgreSQL local
+cat migrations/*.sql | psql -U app -d idea_forge
 ```
 
 ### 4. Instalar Dependencias
@@ -165,7 +364,7 @@ npm install
 Crea `backend/.env`:
 
 ```env
-DATABASE_URL=postgres://app:secret@localhost:5432/idea_forge?sslmode=disable
+DATABASE_URL=postgres://app:app@localhost:5432/idea_forge?sslmode=disable
 GENKIT_BASE_URL=http://localhost:3001
 ```
 
@@ -178,6 +377,12 @@ PORT=3001
 GOOGLE_API_KEY=tu_google_api_key_aqui
 GENKIT_TOKEN=opcional_token_para_auth
 ```
+
+**Obtener Google API Key:**
+1. Ve a https://ai.google.dev/
+2. Haz clic en "Get API Key"
+3. Crea un proyecto nuevo
+4. Copia la API key y pégala en `GOOGLE_API_KEY`
 
 ### Frontend (.env.local)
 
@@ -198,15 +403,15 @@ Necesitas **3 terminales** abiertas:
 #### Terminal 1: Backend Go
 ```bash
 cd backend
-go run ./cmd/api
+go run cmd/api/main.go
 # ✓ API listening on :8080
 ```
 
-#### Terminal 2: Genkit Agent
+#### Terminal 2: Genkit AI Agents
 ```bash
 cd genkit
 node server.js
-# ✓ Ideation agent service running on port 3001
+# ✓ Ideation, Action Plan & Architecture agent service running on port 3001
 ```
 
 #### Terminal 3: Frontend Next.js
@@ -218,122 +423,106 @@ npm run dev
 
 ### Verificar que Todo Funciona
 
-1. **Backend**: `curl http://localhost:8080/healthz` → `{"ok":true}`
-2. **Genkit**: `curl http://localhost:3001/healthz` → `{"ok":true}`
-3. **Frontend**: Abre http://localhost:3000 en tu navegador
+```bash
+# Backend
+curl http://localhost:8080/healthz
+# → {"ok":true}
+
+# Genkit
+curl http://localhost:3001/healthz
+# → {"ok":true}
+
+# Frontend
+# Abre http://localhost:3000 en tu navegador
+```
 
 ---
 
 ## 📖 Uso
 
-### 1. Crear una Nueva Idea
+### Flujo Completo: De Idea a Arquitectura
+
+#### 1️⃣ Crear una Nueva Idea (Módulo 1)
 
 1. Ve a http://localhost:3000
-2. Click en **"Nueva Idea"** en el sidebar
+2. Click en **"Nueva Idea"**
 3. Completa los campos básicos:
    - **Título**: Nombre de tu proyecto
-   - **Objetivo**: ¿Qué quieres lograr?
-   - **Problema**: ¿Qué dolor resuelves?
-   - **Alcance**: ¿Qué incluye tu MVP?
-4. (Opcional) Activa las validaciones de competencia/monetización
-5. Click en **"Crear Idea"**
+   - **Objetivo**: ¿Qué quieres lograr? (incluye métricas)
+   - **Problema**: ¿Qué dolor resuelves y para quién?
+   - **Alcance**: ¿Qué incluye tu MVP? (mínimo 3 funcionalidades)
+4. Click en **"Crear Idea"**
 
-### 2. Conversar con el Agente
+#### 2️⃣ Conversar con el Agente de Ideación
 
-Una vez creada la idea:
+- **Mensaje inicial automático**: El agente te saluda y hace 2-3 preguntas clave
+- **Responde con detalle**: El agente actualiza los campos automáticamente
+- **Observa las actualizaciones en tiempo real**
+- **Completitud automática**: Cuando cumples los 4 criterios, el agente lo detecta
 
-1. **Mensaje inicial automático**: El agente te saludará y hará 2-3 preguntas clave
-2. **Responde con detalle**: Cuanto más contexto des, mejor estructurará tu idea
-3. **Observa las actualizaciones**: Los campos se actualizan automáticamente mientras conversas
-4. **Completitud automática**: Cuando la idea esté bien estructurada, el agente lo detectará
+**Criterios de Completitud:**
+- ✅ Título descriptivo y específico
+- ✅ Objetivo con métricas/KPIs claros
+- ✅ Problema con usuario objetivo Y dolor específico
+- ✅ Alcance con 3+ funcionalidades Y tecnologías/límites
 
-### 3. Finalización
+#### 3️⃣ Finalizar Idea y Avanzar al Módulo 2
 
-Cuando el agente determine que tu idea está completa:
+Cuando la idea esté completa:
+- 🎉 Modal celebratorio aparece
+- Click en **"Ir a Plan de Acción"**
+- Se crea automáticamente el Action Plan vinculado a tu Idea
 
-- 🎉 **Modal celebratorio** aparece
-- ✅ **Chat bloqueado** con banner verde
-- 🔒 **Ya no puedes editar** (idea completada)
+#### 4️⃣ Definir Plan de Acción (Módulo 2)
 
-**Finalización manual**: Si hablas mucho y el agente no detecta completitud, usa el botón **"Finalizar Idea"** (icono de bandera) en la parte inferior del chat.
+- **Generación automática**: Genkit crea contenido inicial basado en tu Idea
+- **6 campos editables**:
+  - Requerimientos Funcionales (RF-XXX)
+  - Requerimientos No Funcionales (RNF-XXX)
+  - Flujo de Lógica de Negocio
+  - Tecnologías
+  - Riesgos
+  - Timeline
+- **Chat con Analista**: Refina y mejora cada sección conversando
+- Click en **"Finalizar Plan"** cuando esté completo
 
-### 4. Navegar por el Historial
+#### 5️⃣ Diseñar Arquitectura (Módulo 3)
 
-- **Sidebar izquierdo**: Muestra todos tus proyectos
-- **Indicador verde**: Proyectos completados (✅)
-- **Click**: Navega al detalle de cualquier proyecto
+- Click en **"Ir a Arquitectura"** desde el modal
+- **Generación automática**: Usa contexto de Idea + Plan de Acción
+- **7 secciones técnicas**:
+  - Historias de Usuario (US-XXX)
+  - Tipo de Base de Datos (con justificación)
+  - Esquema de Base de Datos (SQL DDL / JSON)
+  - Entidades y Relaciones
+  - Stack Tecnológico
+  - Patrón de Arquitectura (MVC, Clean, etc)
+  - Arquitectura del Sistema
+- **Chat con Arquitecto**: Refina decisiones técnicas
+- Click en **"Finalizar"** cuando esté completo
+
+#### 6️⃣ Navegación entre Módulos
+
+- **Progress Stepper**: Muestra en qué módulo estás (1️⃣ → 2️⃣ → 3️⃣)
+- **Flechas de navegación**: Navega entre módulos completados
+- **Sidebar inteligente**: Click en un proyecto te lleva al último módulo activo
+- **Gating**: No puedes acceder a Módulo 2 sin completar Módulo 1
 
 ---
 
 ## 📁 Estructura del Proyecto
 
-### Backend (Go - Clean Architecture)
+Ver sección [Arquitectura](#-arquitectura) arriba para estructura completa.
 
-```
-backend/
-├── cmd/api/main.go              # Entry point, CORS, server
-├── internal/
-│   ├── db/db.go                 # PostgreSQL connection pool
-│   └── ideation/
-│       ├── domain/
-│       │   ├── idea.go          # Idea entity
-│       │   └── message.go       # Message entity
-│       ├── port/
-│       │   └── repository.go    # Repository interface
-│       ├── usecase/
-│       │   ├── create_idea.go
-│       │   ├── get_idea.go
-│       │   ├── list_ideas.go
-│       │   ├── update_idea.go
-│       │   └── append_message.go
-│       └── adapter/
-│           ├── http/handlers.go # HTTP handlers
-│           └── pg/repo.go       # PostgreSQL implementation
-├── go.mod
-└── go.sum
-```
+### Tecnologías por Capa
 
-### Genkit (Node.js + Gemini)
-
-```
-genkit/
-├── server.js                    # Express server
-├── package.json
-└── .env                         # Google API Key
-```
-
-**Características del Agente:**
-- Prompt dual: Primer mensaje vs conversación continua
-- JSON Mode: Respuestas estructuradas (`reply`, `shouldUpdate`, `updates`, `isComplete`)
-- Criterios estrictos de completitud
-- Guardrails para mantener enfoque
-
-### Frontend (Next.js 15 + shadcn/ui)
-
-```
-web/idea-forge-web/
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx           # Root layout con providers
-│   │   ├── page.tsx             # Home page
-│   │   ├── ideation/
-│   │   │   ├── page.tsx         # Crear idea
-│   │   │   └── [id]/page.tsx    # Detalle de idea
-│   │   └── globals.css          # Tailwind + shadcn tokens
-│   ├── components/
-│   │   ├── ui/                  # shadcn components
-│   │   ├── sidebar.tsx          # Navegación + historial
-│   │   ├── ChatPanel.tsx        # Chat con agente
-│   │   ├── IdeaCards.tsx        # Display de campos
-│   │   ├── theme-provider.tsx
-│   │   └── mode-toggle.tsx
-│   └── lib/
-│       ├── api.ts               # Axios client + endpoints
-│       └── utils.ts             # cn() helper
-├── tailwind.config.js
-├── components.json              # shadcn config
-└── package.json
-```
+| Capa | Tecnologías |
+|------|-------------|
+| **Frontend** | Next.js 15, React 19, TypeScript, Tailwind, shadcn/ui |
+| **Backend** | Go 1.21+, net/http, database/sql, Clean Architecture |
+| **AI Agents** | Node.js, Express, Google Generative AI SDK, Gemini 2.0 |
+| **Database** | PostgreSQL 16, goose migrations |
+| **DevOps** | Docker, Docker Compose |
 
 ---
 
@@ -341,138 +530,218 @@ web/idea-forge-web/
 
 ### Backend
 - **Go 1.21+**: Lenguaje principal
-- **net/http**: HTTP server nativo
-- **database/sql**: Driver PostgreSQL
+- **net/http**: HTTP server nativo (sin frameworks)
+- **database/sql**: Driver PostgreSQL estándar
 - **github.com/google/uuid**: UUIDs para IDs
+- **Clean Architecture**: Separación domain/port/usecase/adapter
 
-### Agente IA
-- **Node.js**: Runtime
-- **Express**: HTTP server
-- **Google Generative AI SDK**: Cliente para Gemini
+### Agentes IA
+- **Node.js 18+**: Runtime
+- **Express 4**: HTTP server
+- **@google/generative-ai**: Cliente oficial para Gemini
 - **Gemini 2.0 Flash Exp**: Modelo de IA
 - **dotenv**: Variables de entorno
+- **JSON Mode**: Respuestas estructuradas del modelo
 
 ### Frontend
 - **Next.js 15**: Framework React con App Router
 - **React 19**: Biblioteca UI
-- **TypeScript**: Tipado estático
+- **TypeScript 5**: Tipado estático
 - **Tailwind CSS 3.4**: Utility-first CSS
-- **shadcn/ui**: Componentes UI (Radix UI + Tailwind)
+- **shadcn/ui**: Componentes UI (Radix + Tailwind)
 - **axios**: HTTP client
 - **sonner**: Toast notifications
 - **next-themes**: Dark/light mode
-- **lucide-react**: Iconos
+- **lucide-react**: Sistema de iconos
 
 ### Base de Datos
-- **PostgreSQL 15**: Base de datos relacional
-- **Docker** (opcional): Containerización
+- **PostgreSQL 16**: RDBMS
+- **goose**: Migration tool
+- **Índices optimizados**: Performance en queries frecuentes
 
 ---
 
 ## 🔌 API Endpoints
 
-### Ideas
+### Ideation Module
 
-#### `POST /ideation/ideas`
-Crear nueva idea
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/ideation/ideas` | Crear nueva idea |
+| `GET` | `/ideation/ideas` | Listar ideas (limit 50) |
+| `GET` | `/ideation/ideas/{id}` | Obtener idea específica |
+| `PUT` | `/ideation/ideas/{id}` | Actualizar idea |
+| `GET` | `/ideation/ideas/{id}/messages` | Obtener mensajes del chat |
+| `POST` | `/ideation/agent/chat` | Enviar mensaje al agente |
 
-**Request:**
-```json
-{
-  "title": "Mi App",
-  "objective": "Lograr X usuarios en Y tiempo",
-  "problem": "Los usuarios sufren Z",
-  "scope": "MVP con A, B, C funcionalidades",
-  "validate_competition": true,
-  "validate_monetization": false
-}
+### Action Plan Module
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/action-plan` | Crear action plan (vinculado a idea) |
+| `GET` | `/action-plan/{id}` | Obtener plan por ID |
+| `GET` | `/action-plan/by-idea/{ideaId}` | Obtener plan por idea |
+| `PUT` | `/action-plan/{id}` | Actualizar plan |
+| `GET` | `/action-plan/{id}/messages` | Mensajes del chat |
+| `POST` | `/action-plan/agent/chat` | Chat con analista |
+
+### Architecture Module
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/architecture` | Crear arquitectura (vinculada a plan) |
+| `GET` | `/architecture/{id}` | Obtener arquitectura por ID |
+| `GET` | `/architecture/by-action-plan/{id}` | Por action plan |
+| `PUT` | `/architecture/{id}` | Actualizar arquitectura |
+| `GET` | `/architecture/{id}/messages` | Mensajes del chat |
+| `POST` | `/architecture/agent/chat` | Chat con arquitecto |
+
+### Genkit AI Endpoints
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/flows/ideationAgent` | Chat de ideación |
+| `POST` | `/action-plan/generate-initial` | Generar plan inicial |
+| `POST` | `/action-plan/chat` | Chat de plan |
+| `POST` | `/architecture/generate-initial` | Generar arquitectura |
+| `POST` | `/architecture/chat` | Chat de arquitectura |
+| `GET` | `/healthz` | Health check |
+
+### Ejemplos de Requests
+
+#### Crear Idea
+
+```bash
+curl -X POST http://localhost:8080/ideation/ideas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Plataforma de E-learning",
+    "objective": "Alcanzar 10,000 usuarios activos en 6 meses",
+    "problem": "Estudiantes no tienen acceso a cursos de calidad en español",
+    "scope": "MVP con cursos en video, quizzes, certificados"
+  }'
 ```
 
-**Response:**
-```json
-{
-  "ID": "uuid",
-  "Title": "Mi App",
-  "Objective": "...",
-  "Problem": "...",
-  "Scope": "...",
-  "ValidateCompetition": true,
-  "ValidateMonetization": false,
-  "Completed": false,
-  "CreatedAt": "2025-01-13T..."
-}
+#### Chat con Agente de Ideación
+
+```bash
+curl -X POST http://localhost:3001/flows/ideationAgent \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idea": {
+      "title": "Plataforma de E-learning",
+      "objective": "10,000 usuarios en 6 meses"
+    },
+    "message": "¿Qué funcionalidades debería tener el MVP?"
+  }'
 ```
 
-#### `GET /ideation/ideas`
-Listar todas las ideas (límite: 50)
+#### Crear Plan de Acción
 
-**Response:**
-```json
-[
-  {
-    "ID": "uuid",
-    "Title": "Proyecto 1",
-    "Completed": true,
-    "CreatedAt": "..."
-  },
-  ...
-]
-```
-
-#### `GET /ideation/ideas/{id}`
-Obtener idea específica
-
-#### `PUT /ideation/ideas/{id}`
-Actualizar idea
-
-**Request:**
-```json
-{
-  "title": "Nuevo título",
-  "objective": "Nuevo objetivo",
-  "completed": true  // opcional
-}
-```
-
-#### `GET /ideation/ideas/{id}/messages`
-Obtener mensajes del chat
-
-### Chat
-
-#### `POST /ideation/agent/chat`
-Enviar mensaje al agente
-
-**Request:**
-```json
-{
-  "idea_id": "uuid",
-  "message": "Mi mensaje al agente"
-}
-```
-
-**Response:**
-```json
-{
-  "reply": "Respuesta del agente",
-  "shouldUpdate": true,
-  "updates": {
-    "title": "Título mejorado",
-    "objective": "Objetivo con métricas"
-  },
-  "isComplete": false
-}
+```bash
+curl -X POST http://localhost:8080/action-plan \
+  -H "Content-Type: application/json" \
+  -d '{"idea_id": "uuid-de-la-idea"}'
 ```
 
 ---
 
-## 🎯 Criterios de Completitud del Agente
+## 🐛 Troubleshooting
 
-El agente marca una idea como completa **SOLO** si cumple **TODOS** estos criterios:
+### Puerto en uso
 
-1. ✅ **Título**: Descriptivo y específico (no genérico)
-2. ✅ **Objetivo**: Tiene métricas o KPIs claros (ej: "reducir en 30%", "llegar a 1000 usuarios")
-3. ✅ **Problema**: Menciona usuario objetivo específico Y el dolor que sufre
-4. ✅ **Alcance**: Define MVP con al menos 3 funcionalidades concretas Y menciona tecnologías o límites
+```bash
+# Mata procesos en puertos
+lsof -ti:3000 | xargs kill -9  # Frontend
+lsof -ti:3001 | xargs kill -9  # Genkit
+lsof -ti:8080 | xargs kill -9  # Backend
+
+# O usa otros puertos
+PORT=3002 npm run dev  # Frontend en 3002
+```
+
+### Error de CORS
+
+El backend permite estos orígenes por defecto:
+- `http://localhost:3000`
+- `http://localhost:3002`
+
+Para agregar más, edita `backend/cmd/api/main.go` líneas 86-89.
+
+### PostgreSQL connection refused
+
+```bash
+# Docker
+docker ps | grep postgres
+docker start idea_forge_db
+
+# Local
+pg_isready -U app -d idea_forge
+```
+
+### Migración falló
+
+```bash
+# Ver qué migraciones se aplicaron
+docker exec -i idea_forge_db psql -U app -d idea_forge -c "\dt"
+
+# Aplicar migración específica
+docker exec -i idea_forge_db psql -U app -d idea_forge < migrations/20251016230000_create_architecture_module.sql
+```
+
+### Google API Key inválida o rate limit
+
+```bash
+# Error: 429 Too Many Requests
+# Solución: Espera 1 minuto o usa API key de pago
+
+# Error: 401 Unauthorized
+# Verifica que GOOGLE_API_KEY en genkit/.env sea correcta
+```
+
+### Chat muestra "Invalid Date"
+
+```bash
+# Reinicia Genkit
+lsof -ti:3001 | xargs kill -9
+cd genkit && node server.js
+```
+
+### Frontend muestra errores de compilación
+
+```bash
+# Borra cache de Next.js
+cd web/idea-forge-web
+rm -rf .next
+npm run dev
+```
+
+---
+
+## 🔮 Roadmap
+
+### ✅ Completado
+- [x] Módulo 1: Ideación con agente IA
+- [x] Módulo 2: Plan de Acción con analista
+- [x] Módulo 3: Arquitectura con arquitecto
+- [x] Navegación progresiva entre módulos
+- [x] Componentes reutilizables (AIChat, ModuleStepper)
+- [x] Dark/Light mode
+- [x] Responsive design
+- [x] Clean Architecture en backend
+
+### 🚧 En Progreso
+- [ ] Módulo 4: Generación de Código
+- [ ] Export a PDF/Markdown
+- [ ] Sistema de autenticación
+
+### 📅 Futuro
+- [ ] Diagramas automáticos (Mermaid, PlantUML)
+- [ ] Integración con GitHub (crear repos)
+- [ ] Templates de proyectos
+- [ ] Colaboración en tiempo real
+- [ ] Versioning de ideas/planes
+- [ ] API pública con rate limiting
 
 ---
 
@@ -480,7 +749,13 @@ El agente marca una idea como completa **SOLO** si cumple **TODOS** estos criter
 
 1. Fork el proyecto
 2. Crea una rama feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add: amazing feature'`)
+3. Commit con formato:
+   ```
+   Add: nueva funcionalidad
+   Fix: corrección de bug
+   Update: mejora de feature existente
+   Refactor: mejora de código sin cambiar funcionalidad
+   ```
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
@@ -494,7 +769,7 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ## 👨‍💻 Autor
 
-**Dark** - [GitHub](https://github.com/julianbecerra13)
+**Julian Becerra** - [GitHub](https://github.com/julianbecerra13)
 
 ---
 
@@ -504,47 +779,21 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 - [Google Gemini](https://ai.google.dev/) - Modelo de IA
 - [Vercel](https://vercel.com/) - Next.js framework
 - [Radix UI](https://www.radix-ui.com/) - Componentes primitivos
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [PostgreSQL](https://www.postgresql.org/) - Base de datos
 
 ---
 
-## 🐛 Troubleshooting
+## 📊 Estadísticas del Proyecto
 
-### Puerto 3000 en uso
-```bash
-# Mata el proceso en el puerto 3000
-lsof -ti:3000 | xargs kill -9
-
-# O usa otro puerto
-PORT=3002 npm run dev
-```
-
-### Error de CORS
-Verifica que el backend esté configurado para permitir peticiones desde tu puerto del frontend (3000, 3002, etc).
-
-### PostgreSQL connection refused
-```bash
-# Verifica que PostgreSQL esté corriendo
-docker ps  # o
-pg_isready -U app -d idea_forge
-```
-
-### Google API Key inválida
-1. Ve a https://ai.google.dev/
-2. Crea un proyecto y obtén una API Key
-3. Actualiza `genkit/.env`
+- **Líneas de Código**: ~4,000+ (Backend Go + Frontend TS + Genkit JS)
+- **Archivos**: 36+ archivos principales
+- **Módulos**: 3 módulos completos interconectados
+- **Agentes IA**: 3 especializados (Ideación, Análisis, Arquitectura)
+- **Endpoints API**: 18+ endpoints REST
+- **Componentes React**: 15+ componentes reutilizables
+- **Migraciones**: 6 migraciones de base de datos
 
 ---
 
-## 🔮 Roadmap
-
-- [ ] Sistema de autenticación (usuarios)
-- [ ] Módulo de validación de competencia
-- [ ] Módulo de validación de monetización
-- [ ] Export de ideas a PDF/Markdown
-- [ ] Diagramas automáticos (arquitectura, flujos)
-- [ ] Integración con GitHub para crear repos automáticamente
-- [ ] Generación de código base (scaffolding)
-
----
-
-**¡Feliz Ideación! 🚀**
+**¡Transforma tus ideas en proyectos estructurados con IA! 🚀**
