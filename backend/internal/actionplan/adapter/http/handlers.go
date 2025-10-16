@@ -90,23 +90,34 @@ func (h *Handlers) createActionPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generar contenido inicial y enviar mensaje del agente en paralelo
+	// Generar contenido inicial SÍNCRONAMENTE (esperar a que termine)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	if err := h.generateAndSaveInitialPlan(ctx, plan, idea); err != nil {
+		log.Printf("error generating initial plan: %v", err)
+		// No falla la creación si falla la generación, pero se devuelve vacío
+	}
+
+	// Enviar mensaje inicial del agente en background
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		defer cancel()
+		bgCtx, bgCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer bgCancel()
 
-		// Generar plan inicial con IA
-		if err := h.generateAndSaveInitialPlan(ctx, plan, idea); err != nil {
-			log.Printf("error generating initial plan: %v", err)
-		}
-
-		// Enviar mensaje inicial del agente
-		if err := h.sendInitialAgentMessage(ctx, plan, ideaID); err != nil {
+		if err := h.sendInitialAgentMessage(bgCtx, plan, ideaID); err != nil {
 			log.Printf("error sending initial action plan message: %v", err)
 		}
 	}()
 
-	writeJSON(w, plan, http.StatusOK)
+	// Recargar el plan desde DB para devolver con los campos generados
+	updatedPlan, err := h.Usecase.GetActionPlan(r.Context(), plan.ID)
+	if err != nil {
+		// Si falla, devolver el plan original
+		writeJSON(w, plan, http.StatusOK)
+		return
+	}
+
+	writeJSON(w, updatedPlan, http.StatusOK)
 }
 
 func (h *Handlers) getActionPlan(w http.ResponseWriter, r *http.Request) {
