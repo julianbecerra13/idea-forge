@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { getActionPlan } from "@/lib/api";
+import { getActionPlan, getArchitectureByActionPlanId } from "@/lib/api";
 import ActionPlanEditor from "@/components/ActionPlanEditor";
 import ActionPlanChat from "@/components/ActionPlanChat";
 import ModuleStepper from "@/components/modules/ModuleStepper";
@@ -27,12 +27,25 @@ type ActionPlan = {
 export default function ActionPlanPage({ params }: { params: Params }) {
   const { id } = use(params);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
+  const [architectureId, setArchitectureId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   const loadPlan = async () => {
     try {
       const data = await getActionPlan(id);
       setPlan(data);
+
+      // Intentar cargar arquitectura si existe
+      if (data.completed) {
+        try {
+          const architecture = await getArchitectureByActionPlanId(data.id);
+          if (architecture) {
+            setArchitectureId(architecture.id);
+          }
+        } catch (error) {
+          // No hay arquitectura aún, está bien
+        }
+      }
     } catch (error) {
       console.error("Error loading action plan:", error);
     } finally {
@@ -64,6 +77,7 @@ export default function ActionPlanPage({ params }: { params: Params }) {
       <ModuleStepper
         ideaId={plan.idea_id}
         actionPlanId={plan.id}
+        architectureId={architectureId}
         currentModule={2}
         ideaCompleted={true} // Si existe action plan, la idea está completada
         actionPlanCompleted={plan.completed}
@@ -89,7 +103,9 @@ export default function ActionPlanPage({ params }: { params: Params }) {
         <div className="h-full overflow-hidden">
           <ActionPlanChat
             actionPlanId={plan.id}
-            onPlanUpdate={loadPlan}
+            onPlanUpdate={() => {
+              loadPlan(); // Recargar plan y arquitectura
+            }}
             isCompleted={plan.completed}
           />
         </div>

@@ -16,6 +16,10 @@ import (
 	actionplanpg "github.com/dark/idea-forge/internal/actionplan/adapter/pg"
 	actionplanhttp "github.com/dark/idea-forge/internal/actionplan/adapter/http"
 	actionplanuc "github.com/dark/idea-forge/internal/actionplan/usecase"
+
+	architecturepg "github.com/dark/idea-forge/internal/architecture/adapter/pg"
+	architecturehttp "github.com/dark/idea-forge/internal/architecture/adapter/http"
+	architectureuc "github.com/dark/idea-forge/internal/architecture/usecase"
 )
 
 func main() {
@@ -71,6 +75,17 @@ func main() {
 		IdeaUsecase: get, // Para obtener la idea al crear el plan
 	}
 	actionPlanHandlers.Register(mux)
+
+	// Architecture handlers
+	architectureRepo := architecturepg.NewRepo(sqlDB)
+	architectureUsecase := architectureuc.NewArchitectureUsecase(architectureRepo)
+	architectureHandlers := &architecturehttp.Handlers{
+		Usecase:           architectureUsecase,
+		HTTPClient:        httpClient,
+		ActionPlanUsecase: actionPlanUsecase,
+		IdeaUsecase:       get,
+	}
+	architectureHandlers.Register(mux)
 
 	srv := &http.Server{
 		Addr:              ":8080",

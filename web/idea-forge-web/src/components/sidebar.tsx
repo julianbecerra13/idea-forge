@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useEffect, useState } from "react";
-import { listIdeas, getActionPlanByIdeaId } from "@/lib/api";
+import { listIdeas, getActionPlanByIdeaId, getArchitectureByActionPlanId } from "@/lib/api";
 
 type Idea = {
   ID: string;
@@ -24,6 +24,7 @@ export function Sidebar() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Importar también getArchitectureByActionPlanId
   useEffect(() => {
     loadIdeas();
   }, []);
@@ -52,9 +53,19 @@ export function Sidebar() {
     try {
       const actionPlan = await getActionPlanByIdeaId(idea.ID);
 
-      // Si hay action plan y está completado, podríamos ir al módulo 3
-      // Por ahora, si está completado ir a action plan, si no ir a ideación
       if (actionPlan) {
+        // Si el action plan está completado, buscar arquitectura
+        if (actionPlan.completed) {
+          try {
+            const architecture = await getArchitectureByActionPlanId(actionPlan.id);
+            if (architecture) {
+              return `/architecture/${architecture.id}`;
+            }
+          } catch (error) {
+            // No hay arquitectura aún, ir a action plan
+          }
+        }
+        // Si hay action plan, ir ahí
         return `/action-plan/${actionPlan.id}`;
       }
     } catch (error) {

@@ -37,12 +37,20 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Loguear solo metadata del error, no datos sensibles
-    console.error("❌ API Error:", {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.message,
-    });
+    // No loguear errores 404 esperados (arquitecturas que no existen aún)
+    const is404 = error.response?.status === 404;
+    const isArchitectureEndpoint = error.config?.url?.includes('/architecture/');
+
+    // Solo loguear errores que no sean 404 en endpoints de arquitectura
+    if (!(is404 && isArchitectureEndpoint)) {
+      // Loguear solo metadata del error, no datos sensibles
+      console.error("❌ API Error:", {
+        status: error.response?.status,
+        url: error.config?.url,
+        message: error.message,
+      });
+    }
+
     return Promise.reject(error);
   }
 );
@@ -101,3 +109,31 @@ export const getActionPlanMessages = (id: string) =>
 
 export const postActionPlanChat = (actionPlanId: string, message: string) =>
   api.post(`/action-plan/agent/chat`, { action_plan_id: actionPlanId, message }).then((r) => r.data);
+
+// Architecture API
+export const createArchitecture = (actionPlanId: string) =>
+  api.post(`/architecture`, { action_plan_id: actionPlanId }).then((r) => r.data);
+
+export const getArchitecture = (id: string) =>
+  api.get(`/architecture/${id}`).then((r) => r.data);
+
+export const getArchitectureByActionPlanId = (actionPlanId: string) =>
+  api.get(`/architecture/by-action-plan/${actionPlanId}`).then((r) => r.data);
+
+export const updateArchitecture = (id: string, payload: {
+  status?: string;
+  user_stories?: string;
+  database_type?: string;
+  database_schema?: string;
+  entities_relationships?: string;
+  tech_stack?: string;
+  architecture_pattern?: string;
+  system_architecture?: string;
+  completed?: boolean;
+}) => api.put(`/architecture/${id}`, payload).then((r) => r.data);
+
+export const getArchitectureMessages = (id: string) =>
+  api.get(`/architecture/${id}/messages`).then((r) => r.data);
+
+export const postArchitectureChat = (architectureId: string, message: string) =>
+  api.post(`/architecture/agent/chat`, { architecture_id: architectureId, message }).then((r) => r.data);

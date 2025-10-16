@@ -17,17 +17,21 @@ type Module = {
 type ModuleStepperProps = {
   ideaId: string;
   actionPlanId?: string;
-  currentModule: number; // 1 = Ideación, 2 = Plan de Acción, 3 = Implementación...
+  architectureId?: string;
+  currentModule: number; // 1 = Ideación, 2 = Plan de Acción, 3 = Arquitectura...
   ideaCompleted: boolean;
   actionPlanCompleted?: boolean;
+  architectureCompleted?: boolean;
 };
 
 export default function ModuleStepper({
   ideaId,
   actionPlanId,
+  architectureId,
   currentModule,
   ideaCompleted,
   actionPlanCompleted = false,
+  architectureCompleted = false,
 }: ModuleStepperProps) {
   const router = useRouter();
 
@@ -50,10 +54,10 @@ export default function ModuleStepper({
     },
     {
       id: 3,
-      name: "Implementación",
-      path: "#",
+      name: "Arquitectura",
+      path: architectureId ? `/architecture/${architectureId}` : "#",
       icon: Code,
-      completed: false,
+      completed: architectureCompleted,
       available: actionPlanCompleted, // Solo disponible si plan está completado
     },
   ];

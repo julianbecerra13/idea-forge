@@ -1,6 +1,7 @@
 "use client";
 
-import { getActionPlanMessages, postActionPlanChat, updateActionPlan } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { getActionPlanMessages, postActionPlanChat, updateActionPlan, createArchitecture } from "@/lib/api";
 import AIChat from "@/components/modules/AIChat";
 
 export default function ActionPlanChat({
@@ -12,6 +13,8 @@ export default function ActionPlanChat({
   onPlanUpdate?: () => void;
   isCompleted?: boolean;
 }) {
+  const router = useRouter();
+
   // Adapters para normalizar la API del backend
   const fetchMessages = async (id: string) => {
     const messages = await getActionPlanMessages(id);
@@ -25,6 +28,17 @@ export default function ActionPlanChat({
 
   const updateCompletion = async (id: string, completed: boolean) => {
     await updateActionPlan(id, { completed, status: "completed" });
+  };
+
+  const handleGoToArchitecture = async () => {
+    try {
+      // Crear arquitectura basada en este action plan
+      const architecture = await createArchitecture(actionPlanId);
+      // Navegar a la arquitectura
+      router.push(`/architecture/${architecture.id}`);
+    } catch (error) {
+      console.error("Error creating architecture:", error);
+    }
   };
 
   return (
@@ -44,8 +58,12 @@ export default function ActionPlanChat({
       completeButtonLabel="Finalizar Plan"
       completionModal={{
         title: "¡Plan de Acción Completado! 🎉",
-        description: "Tu plan de acción técnico está listo con todos los requerimientos definidos. El siguiente módulo estará disponible próximamente.",
-        closeLabel: "Entendido",
+        description: "Tu plan de acción técnico está listo con todos los requerimientos definidos. Es hora de diseñar la arquitectura del sistema.",
+        closeLabel: "Cerrar",
+        actionButton: {
+          label: "Ir a Arquitectura",
+          onClick: handleGoToArchitecture,
+        },
       }}
     />
   );

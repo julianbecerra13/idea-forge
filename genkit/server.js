@@ -357,8 +357,254 @@ RESPONDE EN FORMATO JSON:
   }
 });
 
+app.post("/architecture/generate-initial", checkAuth, async (req, res) => {
+  try {
+    const { action_plan, idea } = req.body || {};
+
+    // Construir contexto desde la idea
+    let ideaContext = "";
+    if (idea) {
+      ideaContext = `
+IDEA ORIGINAL:
+- Título: ${sanitizeForPrompt(idea.Title || idea.title || "")}
+- Objetivo: ${sanitizeForPrompt(idea.Objective || idea.objective || "")}
+- Problema: ${sanitizeForPrompt(idea.Problem || idea.problem || "")}
+- Alcance: ${sanitizeForPrompt(idea.Scope || idea.scope || "")}
+`;
+    }
+
+    // Construir contexto desde el action plan
+    let actionPlanContext = "";
+    if (action_plan) {
+      actionPlanContext = `
+PLAN DE ACCIÓN:
+- Requerimientos Funcionales: ${sanitizeForPrompt(action_plan.functional_requirements || "")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(action_plan.non_functional_requirements || "")}
+- Flujo de Lógica de Negocio: ${sanitizeForPrompt(action_plan.business_logic_flow || "")}
+- Tecnologías Propuestas: ${sanitizeForPrompt(action_plan.technologies || "")}
+- Riesgos: ${sanitizeForPrompt(action_plan.risks || "")}
+- Timeline: ${sanitizeForPrompt(action_plan.timeline || "")}
+`;
+    }
+
+    const prompt = `
+Eres un Arquitecto de Software Senior experto en diseño de sistemas y bases de datos.
+
+${ideaContext}
+${actionPlanContext}
+
+Tu tarea es generar una arquitectura técnica completa con las siguientes 7 secciones:
+
+1. **user_stories**: Genera 8-12 historias de usuario en formato "Como [rol], quiero [acción], para [beneficio]". Numera cada historia (US-001, US-002, etc). Basa las historias en los requerimientos funcionales.
+
+2. **database_type**: Analiza los requerimientos y recomienda el tipo de base de datos:
+   - "Relacional (PostgreSQL/MySQL)" si requiere transacciones ACID, relaciones complejas
+   - "NoSQL (MongoDB/Firestore)" si requiere flexibilidad, escalabilidad horizontal
+   - "Híbrida (SQL + NoSQL)" si combina ambas necesidades
+
+   Justifica brevemente tu elección (2-3 líneas).
+
+3. **database_schema**: Diseña el esquema completo de la base de datos:
+   - Para SQL: Tablas en formato SQL DDL con tipos de datos, PKs, FKs, índices
+   - Para NoSQL: Estructura de colecciones/documentos en formato JSON
+   - Para Híbrida: Ambos con separación clara
+
+   Incluye al menos 5-7 entidades principales.
+
+4. **entities_relationships**: Describe las entidades principales y sus relaciones:
+   - Lista cada entidad con sus atributos clave
+   - Define las relaciones (1:1, 1:N, N:M)
+   - Explica las reglas de negocio que afectan las relaciones
+   - Usa formato de diagrama ER en texto o descripción estructurada
+
+5. **tech_stack**: Recomienda un stack tecnológico completo:
+   - **Frontend**: Framework (React/Vue/Angular), State Management, UI Library
+   - **Backend**: Lenguaje/Framework (Node.js/Go/Python/Java), API (REST/GraphQL)
+   - **Base de Datos**: Sistema específico con versión
+   - **Infraestructura**: Cloud (AWS/GCP/Azure), CI/CD, Monitoring
+   - **Desarrollo**: Testing, Linting, Package Manager
+
+   Justifica cada elección brevemente.
+
+6. **architecture_pattern**: Recomienda el patrón arquitectónico más apropiado:
+   - MVC, Clean Architecture, Hexagonal, Microservicios, Serverless, Event-Driven, etc.
+
+   Explica por qué este patrón es el mejor para este proyecto (4-5 líneas).
+
+7. **system_architecture**: Diseña la arquitectura completa del sistema:
+   - Capas de la aplicación y sus responsabilidades
+   - Componentes principales y cómo se comunican
+   - Flujo de datos (sincrónico/asincrónico)
+   - Seguridad: Autenticación, Autorización, Encriptación
+   - Escalabilidad: Load Balancing, Caching, CDN
+   - Monitoreo y Logging
+
+   Usa formato de diagrama en texto o descripción estructurada detallada.
+
+INSTRUCCIONES IMPORTANTES:
+- Sé específico y técnico en cada sección
+- Basa tus decisiones en los requerimientos del plan de acción
+- Usa mejores prácticas de la industria
+- Piensa en escalabilidad, seguridad y mantenibilidad
+- Genera contenido listo para implementar
+
+RESPONDE ÚNICAMENTE EN FORMATO JSON:
+{
+  "user_stories": "US-001: Como...\nUS-002: Como...\n...",
+  "database_type": "Tipo recomendado con justificación",
+  "database_schema": "Esquema detallado en SQL DDL o JSON",
+  "entities_relationships": "Descripción detallada de entidades y relaciones",
+  "tech_stack": "Frontend:\n- ...\nBackend:\n- ...\n...",
+  "architecture_pattern": "Patrón recomendado con justificación",
+  "system_architecture": "Descripción detallada de la arquitectura del sistema"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "models/gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        maxOutputTokens: 8000
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = {
+        user_stories: "",
+        database_type: "",
+        database_schema: "",
+        entities_relationships: "",
+        tech_stack: "",
+        architecture_pattern: "",
+        system_architecture: ""
+      };
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post("/architecture/chat", checkAuth, async (req, res) => {
+  try {
+    const { message, architecture, action_plan, idea } = req.body || {};
+
+    // Construir contexto de la idea
+    let ideaContext = "";
+    if (idea) {
+      ideaContext = `
+**IDEA ORIGINAL:**
+- Título: ${sanitizeForPrompt(idea.Title || idea.title || "")}
+- Objetivo: ${sanitizeForPrompt(idea.Objective || idea.objective || "")}
+- Problema: ${sanitizeForPrompt(idea.Problem || idea.problem || "")}
+- Alcance: ${sanitizeForPrompt(idea.Scope || idea.scope || "")}
+`;
+    }
+
+    // Construir contexto del action plan
+    let actionPlanContext = "";
+    if (action_plan) {
+      actionPlanContext = `
+**PLAN DE ACCIÓN:**
+- Requerimientos Funcionales: ${sanitizeForPrompt(action_plan.functional_requirements || "No definidos")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(action_plan.non_functional_requirements || "No definidos")}
+- Tecnologías: ${sanitizeForPrompt(action_plan.technologies || "No definidas")}
+`;
+    }
+
+    // Construir contexto de la arquitectura actual
+    let architectureContext = "";
+    if (architecture) {
+      if (architecture.user_stories) {
+        architectureContext += `\n**Historias de Usuario:**\n${sanitizeForPrompt(architecture.user_stories)}`;
+      }
+      if (architecture.database_type) {
+        architectureContext += `\n**Tipo de Base de Datos:**\n${sanitizeForPrompt(architecture.database_type)}`;
+      }
+      if (architecture.database_schema) {
+        architectureContext += `\n**Esquema de BD:**\n${sanitizeForPrompt(architecture.database_schema)}`;
+      }
+      if (architecture.tech_stack) {
+        architectureContext += `\n**Stack Tecnológico:**\n${sanitizeForPrompt(architecture.tech_stack)}`;
+      }
+      if (architecture.architecture_pattern) {
+        architectureContext += `\n**Patrón de Arquitectura:**\n${sanitizeForPrompt(architecture.architecture_pattern)}`;
+      }
+    }
+
+    const systemPrompt = `
+Eres un Arquitecto de Software Senior experto en diseño de sistemas, bases de datos y patrones arquitectónicos.
+
+${ideaContext}
+${actionPlanContext}
+
+**ARQUITECTURA ACTUAL DEL SISTEMA:**
+${architectureContext || "La arquitectura aún no tiene contenido generado."}
+
+Tu rol es:
+1. Ayudar a refinar y mejorar la arquitectura del sistema
+2. Responder preguntas sobre decisiones arquitectónicas
+3. Sugerir mejoras basadas en mejores prácticas
+4. Explicar conceptos arquitectónicos de forma clara
+5. Ayudar a resolver problemas de diseño
+6. Recomendar patrones y tecnologías apropiadas
+
+**Reglas importantes:**
+- Sé específico y técnico cuando sea necesario
+- Justifica tus recomendaciones con razones técnicas
+- Considera escalabilidad, mantenibilidad, seguridad y performance
+- Adapta tus respuestas al nivel técnico de la pregunta
+- Si sugieres cambios, explica el impacto y los beneficios
+- Mantén coherencia con las decisiones arquitectónicas previas
+- NO respondas preguntas off-topic, enfócate en la arquitectura
+
+Responde de forma clara, profesional y útil.
+
+USUARIO: ${sanitizeForPrompt(message)}
+
+RESPONDE EN FORMATO JSON:
+{
+  "response": "Tu respuesta conversacional aquí"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "models/gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        maxOutputTokens: 2000
+      }
+    });
+
+    const result = await model.generateContent(systemPrompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { response: text };
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => {
-  console.log(`🧩 Ideation & Action Plan agent service running on port ${PORT}`);
+  console.log(`🧩 Ideation, Action Plan & Architecture agent service running on port ${PORT}`);
 });
