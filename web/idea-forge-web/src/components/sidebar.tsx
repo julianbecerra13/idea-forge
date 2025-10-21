@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Lightbulb, Home, Plus, CheckCircle2 } from "lucide-react";
+import { Lightbulb, Home, Plus, CheckCircle2, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useEffect, useState } from "react";
 import { listIdeas, getActionPlanByIdeaId, getArchitectureByActionPlanId } from "@/lib/api";
+import { getUser, logout } from "@/lib/auth";
 
 type Idea = {
   ID: string;
@@ -23,6 +24,7 @@ export function Sidebar() {
   const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const user = getUser();
 
   // Importar también getArchitectureByActionPlanId
   useEffect(() => {
@@ -166,7 +168,34 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t p-4">
+        <div className="border-t p-4 space-y-3">
+          {/* User Info */}
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-muted/50">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{user.username}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Logout Button */}
+          <Button
+            onClick={logout}
+            variant="ghost"
+            className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+            size="sm"
+          >
+            <LogOut className="h-4 w-4" />
+            Cerrar Sesión
+          </Button>
+
+          <Separator />
+
+          {/* Theme Toggle */}
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Tema</span>
             <ModeToggle />
