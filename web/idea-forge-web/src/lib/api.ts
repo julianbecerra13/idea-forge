@@ -1,4 +1,5 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE,
@@ -6,9 +7,14 @@ export const api = axios.create({
   timeout: 35000, // 35 segundos (5s más que backend para evitar timeouts prematuros)
 });
 
-// Interceptor para logs (request)
+// Interceptor para agregar token de autenticación
 api.interceptors.request.use(
   (config) => {
+    const token = Cookies.get('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     // Solo loguear en desarrollo para evitar exponer datos en producción
     if (process.env.NODE_ENV === 'development') {
       console.log("🚀 API Request:", {
@@ -137,3 +143,37 @@ export const getArchitectureMessages = (id: string) =>
 
 export const postArchitectureChat = (architectureId: string, message: string) =>
   api.post(`/architecture/agent/chat`, { architecture_id: architectureId, message }).then((r) => r.data);
+
+// Auth API
+export const register = (payload: {
+  username: string;
+  email: string;
+  password: string;
+  confirm_password: string;
+}) => api.post(`/auth/register`, payload).then((r) => r.data);
+
+export const verifyEmail = (payload: {
+  user_id: string;
+  code: string;
+}) => api.post(`/auth/verify-email`, payload).then((r) => r.data);
+
+export const resendCode = (payload: {
+  user_id: string;
+}) => api.post(`/auth/resend-code`, payload).then((r) => r.data);
+
+export const login = (payload: {
+  email_or_username: string;
+  password: string;
+}) => api.post(`/auth/login`, payload).then((r) => r.data);
+
+export const forgotPassword = (payload: {
+  email: string;
+}) => api.post(`/auth/forgot-password`, payload).then((r) => r.data);
+
+export const resetPassword = (payload: {
+  token: string;
+  new_password: string;
+  confirm_password: string;
+}) => api.post(`/auth/reset-password`, payload).then((r) => r.data);
+
+export const getMe = () => api.get(`/auth/me`).then((r) => r.data);

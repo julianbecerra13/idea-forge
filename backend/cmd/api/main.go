@@ -20,6 +20,12 @@ import (
 	architecturepg "github.com/dark/idea-forge/internal/architecture/adapter/pg"
 	architecturehttp "github.com/dark/idea-forge/internal/architecture/adapter/http"
 	architectureuc "github.com/dark/idea-forge/internal/architecture/usecase"
+
+	authpg "github.com/dark/idea-forge/internal/auth/adapter/pg"
+	authhttp "github.com/dark/idea-forge/internal/auth/adapter/http"
+	authsmtp "github.com/dark/idea-forge/internal/auth/adapter/smtp"
+	authuc "github.com/dark/idea-forge/internal/auth/usecase"
+	"github.com/dark/idea-forge/internal/middleware"
 )
 
 func main() {
@@ -86,6 +92,61 @@ func main() {
 		IdeaUsecase:       get,
 	}
 	architectureHandlers.Register(mux)
+
+	// Auth setup
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "dev-secret-key-change-in-production"
+		log.Println("WARNING: Using default JWT secret. Set JWT_SECRET env var in production!")
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	// Email service config
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+	smtpFrom := os.Getenv("SMTP_FROM")
+	if smtpFrom == "" {
+		smtpFrom = "Idea Forge <noreply@ideaforge.com>"
+	}
+
+	emailService := authsmtp.NewEmailService(smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom)
+	authRepo := authpg.NewUserRepository(sqlDB)
+
+	// Auth use cases
+	registerUC := authuc.NewRegisterUseCase(authRepo, emailService)
+	verifyEmailUC := authuc.NewVerifyEmailUseCase(authRepo)
+	loginUC := authuc.NewLoginUseCase(authRepo, jwtSecret)
+	forgotPasswordUC := authuc.NewForgotPasswordUseCase(authRepo, emailService, frontendURL)
+	resetPasswordUC := authuc.NewResetPasswordUseCase(authRepo)
+
+	// Auth handlers
+	authHandlers := authhttp.NewAuthHandler(
+		registerUC,
+		verifyEmailUC,
+		loginUC,
+		forgotPasswordUC,
+		resetPasswordUC,
+		authRepo,
+		emailService,
+	)
+
+	// Auth routes (public)
+	mux.HandleFunc("POST /auth/register", authHandlers.Register)
+	mux.HandleFunc("POST /auth/verify-email", authHandlers.VerifyEmail)
+	mux.HandleFunc("POST /auth/resend-code", authHandlers.ResendCode)
+	mux.HandleFunc("POST /auth/login", authHandlers.Login)
+	mux.HandleFunc("POST /auth/forgot-password", authHandlers.ForgotPassword)
+	mux.HandleFunc("POST /auth/reset-password", authHandlers.ResetPassword)
+
+	// Auth routes (protected)
+	authMiddleware := middleware.AuthMiddleware(jwtSecret)
+	mux.Handle("GET /auth/me", authMiddleware(http.HandlerFunc(authHandlers.GetMe)))
 
 	srv := &http.Server{
 		Addr:              ":8080",
