@@ -396,7 +396,45 @@ NEXT_PUBLIC_API_BASE=http://localhost:8080
 
 ## 🚀 Ejecución
 
-### Iniciar Todos los Servicios
+### 🐳 Opción 1: Docker (Recomendado) ⭐
+
+**Levanta todo el proyecto con un solo comando:**
+
+```bash
+# 1. Copia y configura las variables de entorno
+cp .env.example .env
+# Edita .env y agrega tu GOOGLE_API_KEY
+
+# 2. Levanta todos los servicios
+docker-compose up -d
+
+# 3. Ver logs (opcional)
+docker-compose logs -f
+
+# ✓ Frontend: http://localhost:3000
+# ✓ Backend: http://localhost:8080
+# ✓ Genkit: http://localhost:3001
+# ✓ PostgreSQL: localhost:5432
+```
+
+**Comandos útiles:**
+```bash
+# Detener todos los servicios
+docker-compose down
+
+# Reconstruir después de cambios
+docker-compose up -d --build
+
+# Ver estado de contenedores
+docker-compose ps
+
+# Limpiar todo (incluyendo volúmenes)
+docker-compose down -v
+```
+
+---
+
+### 💻 Opción 2: Desarrollo Local
 
 Necesitas **3 terminales** abiertas:
 
