@@ -75,13 +75,16 @@ func (s *EmailService) sendEmail(to, subject, body string) error {
 	// Configurar autenticación
 	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost)
 
-	// Construir mensaje
+	// Construir mensaje con formato correcto RFC 5321
 	msg := fmt.Sprintf("From: %s\r\n", s.fromAddr)
 	msg += fmt.Sprintf("To: %s\r\n", to)
 	msg += fmt.Sprintf("Subject: %s\r\n", subject)
-	msg += "\r\n" + body
+	msg += "MIME-Version: 1.0\r\n"
+	msg += "Content-Type: text/plain; charset=UTF-8\r\n"
+	msg += "\r\n"
+	msg += body
 
 	// Enviar email
 	addr := s.smtpHost + ":" + s.smtpPort
-	return smtp.SendMail(addr, auth, s.fromAddr, []string{to}, []byte(msg))
+	return smtp.SendMail(addr, auth, s.smtpUser, []string{to}, []byte(msg))
 }
