@@ -216,6 +216,73 @@ FORMATO DE RESPUESTA JSON:
   }
 });
 
+// Endpoint para editar una sección específica de una idea
+app.post("/ideation/edit-section", checkAuth, async (req, res) => {
+  try {
+    const { section, message, idea } = req.body || {};
+
+    const sanitizedMessage = sanitizeForPrompt(message);
+    const sanitizedTitle = sanitizeForPrompt(idea?.title || "");
+    const sanitizedObjective = sanitizeForPrompt(idea?.objective || "");
+    const sanitizedProblem = sanitizeForPrompt(idea?.problem || "");
+    const sanitizedScope = sanitizeForPrompt(idea?.scope || "");
+
+    const sectionNames = {
+      title: "Título",
+      objective: "Objetivo",
+      problem: "Problema",
+      scope: "Alcance"
+    };
+
+    const prompt = `
+Eres un experto en ideación de proyectos de software.
+
+IDEA ACTUAL:
+- Título: "${sanitizedTitle}"
+- Objetivo: "${sanitizedObjective}"
+- Problema: "${sanitizedProblem}"
+- Alcance: "${sanitizedScope}"
+
+El usuario quiere modificar la sección "${sectionNames[section] || section}".
+
+MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES:
+1. Analiza lo que el usuario quiere cambiar
+2. Genera una versión mejorada de la sección "${sectionNames[section] || section}"
+3. Responde de forma conversacional explicando los cambios
+4. Mantén coherencia con el resto de la idea
+
+RESPONDE EN FORMATO JSON:
+{
+  "reply": "Tu respuesta conversacional explicando los cambios realizados",
+  "updatedSection": "El nuevo contenido mejorado para la sección ${sectionNames[section] || section}"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    const parsed = safeParseJSON(text, {
+      reply: "Lo siento, hubo un error al procesar tu solicitud.",
+      updatedSection: idea?.[section] || ""
+    });
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/ideation/edit-section] Error:", e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.post("/action-plan/chat", checkAuth, async (req, res) => {
   try {
     const { idea_id, message, context = {} } = req.body || {};
@@ -317,6 +384,86 @@ EJEMPLOS DE BUENAS RESPUESTAS:
     res.json(parsed);
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Endpoint para editar una sección específica del plan de acción
+app.post("/action-plan/edit-section", checkAuth, async (req, res) => {
+  try {
+    const { section, message, idea_context, plan_context } = req.body || {};
+
+    const sanitizedMessage = sanitizeForPrompt(message);
+
+    const sectionNames = {
+      functional_requirements: "Requerimientos Funcionales",
+      non_functional_requirements: "Requerimientos No Funcionales",
+      business_logic_flow: "Flujo de Lógica de Negocio"
+    };
+
+    let ideaInfo = "";
+    if (idea_context) {
+      ideaInfo = `
+CONTEXTO DE LA IDEA:
+- Título: "${sanitizeForPrompt(idea_context.title || "")}"
+- Objetivo: "${sanitizeForPrompt(idea_context.objective || "")}"
+- Problema: "${sanitizeForPrompt(idea_context.problem || "")}"
+- Alcance: "${sanitizeForPrompt(idea_context.scope || "")}"
+`;
+    }
+
+    let planInfo = "";
+    if (plan_context) {
+      planInfo = `
+PLAN DE ACCIÓN ACTUAL:
+- Requerimientos Funcionales: ${sanitizeForPrompt(plan_context.functional_requirements || "No definidos")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(plan_context.non_functional_requirements || "No definidos")}
+- Flujo de Lógica de Negocio: ${sanitizeForPrompt(plan_context.business_logic_flow || "No definido")}
+`;
+    }
+
+    const prompt = `
+Eres un Analista de Sistemas Senior especializado en levantar requerimientos.
+${ideaInfo}
+${planInfo}
+
+El usuario quiere modificar la sección "${sectionNames[section] || section}".
+
+MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES:
+1. Analiza lo que el usuario quiere cambiar o agregar
+2. Genera una versión mejorada/actualizada de la sección
+3. Usa formato numerado (RF-XXX para funcionales, RNF-XXX para no funcionales)
+4. Responde de forma conversacional explicando los cambios
+5. Mantén coherencia con el resto del plan
+
+RESPONDE EN FORMATO JSON:
+{
+  "reply": "Tu respuesta conversacional explicando los cambios realizados",
+  "updatedSection": "El nuevo contenido completo para la sección ${sectionNames[section] || section}"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    const parsed = safeParseJSON(text, {
+      reply: "Lo siento, hubo un error al procesar tu solicitud.",
+      updatedSection: plan_context?.[section] || ""
+    });
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/action-plan/edit-section] Error:", e);
     res.status(500).json({ error: String(e) });
   }
 });
@@ -628,6 +775,95 @@ RESPONDE EN FORMATO JSON:
     res.json(parsed);
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Endpoint para editar una sección específica de la arquitectura
+app.post("/architecture/edit-section", checkAuth, async (req, res) => {
+  try {
+    const { section, message, idea_context, plan_context, architecture_context } = req.body || {};
+
+    const sanitizedMessage = sanitizeForPrompt(message);
+
+    const sectionNames = {
+      user_stories: "Historias de Usuario",
+      database_type: "Tipo de Base de Datos",
+      database_schema: "Esquema de Base de Datos",
+      entities_relationships: "Entidades y Relaciones",
+      tech_stack: "Stack Tecnológico",
+      architecture_pattern: "Patrón de Arquitectura",
+      system_architecture: "Arquitectura del Sistema"
+    };
+
+    let context = "";
+    if (idea_context) {
+      context += `
+IDEA ORIGINAL:
+- Título: "${sanitizeForPrompt(idea_context.title || "")}"
+- Objetivo: "${sanitizeForPrompt(idea_context.objective || "")}"
+`;
+    }
+
+    if (plan_context) {
+      context += `
+PLAN DE ACCIÓN:
+- Requerimientos Funcionales: ${sanitizeForPrompt(plan_context.functional_requirements || "No definidos")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(plan_context.non_functional_requirements || "No definidos")}
+`;
+    }
+
+    if (architecture_context) {
+      context += `
+ARQUITECTURA ACTUAL:
+- Historias de Usuario: ${sanitizeForPrompt(architecture_context.user_stories || "No definidas")}
+- Tipo BD: ${sanitizeForPrompt(architecture_context.database_type || "No definido")}
+- Stack: ${sanitizeForPrompt(architecture_context.tech_stack || "No definido")}
+- Patrón: ${sanitizeForPrompt(architecture_context.architecture_pattern || "No definido")}
+`;
+    }
+
+    const prompt = `
+Eres un Arquitecto de Software Senior experto en diseño de sistemas.
+${context}
+
+El usuario quiere modificar la sección "${sectionNames[section] || section}".
+
+MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES:
+1. Analiza lo que el usuario quiere cambiar o agregar
+2. Genera una versión mejorada/actualizada de la sección
+3. Sé específico y técnico, usa mejores prácticas
+4. Responde de forma conversacional explicando los cambios
+5. Mantén coherencia con el resto de la arquitectura
+
+RESPONDE EN FORMATO JSON:
+{
+  "reply": "Tu respuesta conversacional explicando los cambios realizados",
+  "updatedSection": "El nuevo contenido completo para la sección ${sectionNames[section] || section}"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    const parsed = safeParseJSON(text, {
+      reply: "Lo siento, hubo un error al procesar tu solicitud.",
+      updatedSection: architecture_context?.[section] || ""
+    });
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/architecture/edit-section] Error:", e);
     res.status(500).json({ error: String(e) });
   }
 });
