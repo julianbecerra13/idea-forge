@@ -146,22 +146,22 @@ export default function ActionPlanSectionModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden min-h-[400px]">
+        <div className="grid grid-cols-2 gap-4 h-[400px]">
           {/* Panel Izquierdo: Contenido Actual */}
-          <div className="flex flex-col space-y-2">
-            <p className="text-sm font-medium">Contenido actual:</p>
+          <div className="flex flex-col space-y-2 h-full overflow-hidden">
+            <p className="text-sm font-medium flex-shrink-0">Contenido actual:</p>
             <ScrollArea className="flex-1 rounded-lg border bg-muted/50 p-4">
-              <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono">
+              <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
                 {updatedValue || "Sin contenido. Usa el chat para generar."}
               </pre>
             </ScrollArea>
           </div>
 
           {/* Panel Derecho: Chat con IA */}
-          <div className="flex flex-col space-y-2 overflow-hidden">
-            <p className="text-sm font-medium">Chat con la IA:</p>
+          <div className="flex flex-col space-y-2 h-full overflow-hidden">
+            <p className="text-sm font-medium flex-shrink-0">Chat con la IA:</p>
 
-            <ScrollArea className="flex-1 rounded-lg border p-4">
+            <ScrollArea className="flex-1 rounded-lg border p-4 min-h-0">
               {messages.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground py-8">
                   <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -209,8 +209,8 @@ export default function ActionPlanSectionModal({
               )}
             </ScrollArea>
 
-            {/* Input */}
-            <div className="flex gap-2">
+            {/* Input - siempre visible */}
+            <div className="flex gap-2 flex-shrink-0">
               <Input
                 placeholder="Escribe tu mensaje..."
                 value={userInput}
