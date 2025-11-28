@@ -246,11 +246,11 @@ export default function ArchitectureSectionModal({
                     handleSendMessage();
                   }
                 }}
-                disabled={loading || isCompleted}
+                disabled={loading}
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={loading || !userInput.trim() || isCompleted}
+                disabled={loading || !userInput.trim()}
                 size="icon"
               >
                 {loading ? (
@@ -267,7 +267,7 @@ export default function ArchitectureSectionModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isCompleted}>
+          <Button onClick={handleSave}>
             Aplicar Cambios
           </Button>
         </DialogFooter>
