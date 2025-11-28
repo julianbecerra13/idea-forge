@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Target, AlertCircle, Maximize2, CheckCircle, XCircle, Edit2 } from "lucide-react";
+import { Target, AlertCircle, Maximize2, CheckCircle, XCircle, Edit2, Lock } from "lucide-react";
 import SectionEditModal from "@/components/SectionEditModal";
 import { toast } from "sonner";
 import { updateIdea } from "@/lib/api";
@@ -39,10 +39,12 @@ const sectionIcons: Record<SectionKey, React.ReactNode> = {
 
 export default function IdeaCardsEditable({
   idea: initialIdea,
-  onUpdate
+  onUpdate,
+  isLocked = false,
 }: {
   idea: Idea;
   onUpdate?: () => void;
+  isLocked?: boolean;
 }) {
   const [idea, setIdea] = useState(initialIdea);
   const [editingSection, setEditingSection] = useState<SectionKey | null>(null);
@@ -93,115 +95,168 @@ export default function IdeaCardsEditable({
     scope: idea.Scope,
   };
 
+  const handleCardClick = (section: SectionKey) => {
+    if (isLocked) {
+      toast.error("No puedes editar la idea porque ya existe un Plan de Acción basado en ella.");
+      return;
+    }
+    setEditingSection(section);
+  };
+
   return (
     <>
+      {/* Banner de bloqueo */}
+      {isLocked && (
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 px-4 py-3 mb-4">
+          <Lock className="h-5 w-5 text-amber-600" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Módulo bloqueado</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">No puedes editar la idea porque ya existe un Plan de Acción basado en ella.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {/* Card: Título */}
-        <Card className="transition-all hover:shadow-md cursor-pointer group" onClick={() => setEditingSection("title")}>
+        <Card
+          className={`transition-all ${isLocked ? 'opacity-75 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'} group`}
+          onClick={() => handleCardClick("title")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {sectionIcons.title}
                 Título
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingSection("title");
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+              {isLocked ? (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick("title");
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-base font-medium">{idea.Title}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Click para editar con IA
-            </p>
+            {!isLocked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Click para editar con IA
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Card: Objetivo */}
-        <Card className="transition-all hover:shadow-md cursor-pointer group" onClick={() => setEditingSection("objective")}>
+        <Card
+          className={`transition-all ${isLocked ? 'opacity-75 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'} group`}
+          onClick={() => handleCardClick("objective")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {sectionIcons.objective}
                 Objetivo
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingSection("objective");
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+              {isLocked ? (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick("objective");
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground line-clamp-3">{idea.Objective}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Click para editar con IA
-            </p>
+            {!isLocked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Click para editar con IA
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Card: Problema */}
-        <Card className="transition-all hover:shadow-md cursor-pointer group" onClick={() => setEditingSection("problem")}>
+        <Card
+          className={`transition-all ${isLocked ? 'opacity-75 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'} group`}
+          onClick={() => handleCardClick("problem")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {sectionIcons.problem}
                 Problema
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingSection("problem");
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+              {isLocked ? (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick("problem");
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground line-clamp-3">{idea.Problem}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Click para editar con IA
-            </p>
+            {!isLocked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Click para editar con IA
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Card: Alcance */}
-        <Card className="transition-all hover:shadow-md cursor-pointer group" onClick={() => setEditingSection("scope")}>
+        <Card
+          className={`transition-all ${isLocked ? 'opacity-75 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'} group`}
+          onClick={() => handleCardClick("scope")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {sectionIcons.scope}
                 Alcance
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingSection("scope");
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+              {isLocked ? (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick("scope");
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -216,15 +271,17 @@ export default function IdeaCardsEditable({
                 Monetización
               </Badge>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Click para editar con IA
-            </p>
+            {!isLocked && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Click para editar con IA
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Modales de Edición */}
-      {editingSection && (
+      {editingSection && !isLocked && (
         <SectionEditModal
           open={!!editingSection}
           onOpenChange={(open) => !open && setEditingSection(null)}

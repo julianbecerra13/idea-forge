@@ -132,11 +132,13 @@ export default function IdeationPage({ params }: { params: Params }) {
       <div className="space-y-6">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">{idea.Title}</h1>
-          <p className="text-sm text-muted-foreground">
-            Click en cualquier sección para editarla con ayuda de la IA
-          </p>
+          {!actionPlan && (
+            <p className="text-sm text-muted-foreground">
+              Click en cualquier sección para editarla con ayuda de la IA
+            </p>
+          )}
         </div>
-        <IdeaCardsEditable idea={idea} onUpdate={loadIdea} />
+        <IdeaCardsEditable idea={idea} onUpdate={loadIdea} isLocked={!!actionPlan} />
       </div>
 
       {/* Botón para marcar como completado */}

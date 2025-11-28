@@ -167,9 +167,11 @@ export default function ActionPlanPage({ params }: { params: Params }) {
             )}
           </div>
         </div>
-        <p className="text-muted-foreground">
-          Click en cualquier sección para editarla con ayuda de la IA
-        </p>
+        {!architectureId && (
+          <p className="text-muted-foreground">
+            Click en cualquier sección para editarla con ayuda de la IA
+          </p>
+        )}
       </div>
 
       {/* Cards Editables */}
@@ -177,6 +179,7 @@ export default function ActionPlanPage({ params }: { params: Params }) {
         plan={plan}
         ideaContext={ideaContext}
         onUpdate={loadPlan}
+        isLocked={!!architectureId}
       />
 
       {/* Botón para marcar como completado */}
