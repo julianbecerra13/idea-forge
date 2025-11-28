@@ -1,15 +1,26 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { getIdea, getActionPlanByIdeaId } from "@/lib/api";
-import IdeaCards from "@/components/IdeaCards";
-import ChatPanel from "@/components/ChatPanel";
+import { useRouter } from "next/navigation";
+import { getIdea, getActionPlanByIdeaId, updateIdea, createActionPlan } from "@/lib/api";
+import IdeaCardsEditable from "@/components/IdeaCardsEditable";
 import ModuleStepper from "@/components/modules/ModuleStepper";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, Lightbulb } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Lightbulb, ArrowRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Params = Promise<{ id: string }>;
 
@@ -32,9 +43,11 @@ type ActionPlan = {
 
 export default function IdeationPage({ params }: { params: Params }) {
   const { id } = use(params);
+  const router = useRouter();
   const [idea, setIdea] = useState<Idea | null>(null);
   const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [proceeding, setProceeding] = useState(false);
 
   const loadIdea = async () => {
     try {
@@ -62,6 +75,34 @@ export default function IdeationPage({ params }: { params: Params }) {
     loadIdea();
   }, [id]);
 
+  const handleProceedToActionPlan = async () => {
+    if (!idea) return;
+
+    setProceeding(true);
+    try {
+      // 1. Marcar idea como completada
+      await updateIdea(idea.ID, { completed: true });
+
+      // 2. Crear el Plan de Acción (la IA lo genera automáticamente)
+      const newActionPlan = await createActionPlan(idea.ID);
+
+      toast.success("Plan de Acción creado exitosamente");
+
+      // 3. Navegar al Plan de Acción
+      router.push(`/action-plan/${newActionPlan.id}`);
+    } catch (error: any) {
+      console.error("Error proceeding to action plan:", error);
+      if (error.response?.status === 429) {
+        toast.error("Límite de peticiones excedido. Espera un momento.");
+      } else if (error.response?.status === 503) {
+        toast.error("La IA está temporalmente no disponible. Espera 1-2 minutos.");
+      } else {
+        toast.error("Error al crear el Plan de Acción");
+      }
+      setProceeding(false);
+    }
+  };
+
   if (loading) {
     return <LoadingState variant="cards" count={4} />;
   }
@@ -87,65 +128,109 @@ export default function IdeationPage({ params }: { params: Params }) {
         actionPlanCompleted={actionPlan?.completed}
       />
 
-      {/* Layout Desktop: 2 paneles */}
-      <div className="hidden h-[calc(100vh-16rem)] gap-6 lg:grid lg:grid-cols-[1fr_380px]">
-        {/* Panel Izquierdo: Cards */}
-        <div className="space-y-6 overflow-auto">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">{idea.Title}</h1>
-            <p className="text-sm text-muted-foreground">ID: {idea.ID}</p>
-          </div>
-          <IdeaCards idea={idea} />
+      {/* Layout con Cards Editables - sin chat lateral */}
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">{idea.Title}</h1>
+          <p className="text-sm text-muted-foreground">
+            Click en cualquier sección para editarla con ayuda de la IA
+          </p>
         </div>
-
-        {/* Panel Derecho: Chat */}
-        <div className="h-full overflow-hidden">
-          <ChatPanel ideaId={idea.ID} onMessageSent={loadIdea} isCompleted={idea.Completed} />
-        </div>
+        <IdeaCardsEditable idea={idea} onUpdate={loadIdea} />
       </div>
 
-      {/* Layout Móvil/Tablet: Chat en Sheet */}
-      <div className="lg:hidden">
-        <div className="space-y-6">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">{idea.Title}</h1>
-              <p className="text-sm text-muted-foreground">ID: {idea.ID}</p>
-            </div>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button size="lg" className="gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Chat
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full p-0 sm:max-w-lg">
-                <div className="h-full">
-                  <ChatPanel ideaId={idea.ID} onMessageSent={loadIdea} isCompleted={idea.Completed} />
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-          <IdeaCards idea={idea} />
+      {/* Botón para marcar como completado */}
+      {!idea.Completed && (
+        <div className="flex justify-end pt-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="lg" variant="outline" className="gap-2">
+                Marcar como Completado
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Marcar idea como completada?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Al marcar como completada, podrás continuar al siguiente módulo: Plan de Acción.
+                  <p className="mt-2 text-sm">
+                    Aún podrás editar la idea después si lo necesitas.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={async () => {
+                  await updateIdea(idea.ID, { completed: true });
+                  toast.success("Idea marcada como completada");
+                  loadIdea();
+                }}>
+                  Confirmar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
+      )}
 
-        {/* Botón flotante para móvil */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              size="icon"
-              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg md:hidden"
-            >
-              <MessageSquare className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-full p-0">
-            <div className="h-full">
-              <ChatPanel ideaId={idea.ID} onMessageSent={loadIdea} isCompleted={idea.Completed} />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+      {/* Botón para continuar al siguiente módulo (cuando está completada pero no hay plan) */}
+      {idea.Completed && !actionPlan && (
+        <div className="flex justify-end pt-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="lg" className="gap-2" disabled={proceeding}>
+                {proceeding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generando Plan de Acción...
+                  </>
+                ) : (
+                  <>
+                    Continuar a Plan de Acción
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Continuar al Plan de Acción?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  La IA analizará tu idea y generará automáticamente:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Requerimientos Funcionales</li>
+                    <li>Requerimientos No Funcionales</li>
+                    <li>Flujo de Lógica de Negocio</li>
+                  </ul>
+                  <p className="mt-3 text-sm">
+                    Podrás editar cada sección después con ayuda de la IA.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleProceedToActionPlan}>
+                  Continuar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      {/* Si ya está completada y hay plan, mostrar botón para ir al plan existente */}
+      {idea.Completed && actionPlan && (
+        <div className="flex justify-end pt-4">
+          <Button
+            size="lg"
+            className="gap-2"
+            onClick={() => router.push(`/action-plan/${actionPlan.id}`)}
+          >
+            Ir a Plan de Acción
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

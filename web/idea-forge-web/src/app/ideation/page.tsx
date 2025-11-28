@@ -70,9 +70,9 @@ export default function IdeationIndex() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Crear Nueva Idea</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Cuéntanos tu Idea</h1>
         <p className="text-muted-foreground">
-          Define los detalles de tu proyecto y valida con el agente de ideación
+          Escribe tu idea con tus propias palabras. Nuestra IA la estructurará profesionalmente para ti.
         </p>
       </div>
 
@@ -80,69 +80,81 @@ export default function IdeationIndex() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Lightbulb className="h-5 w-5" />
-            Información del Proyecto
+            Tu Proyecto
           </CardTitle>
           <CardDescription>
-            Completa los campos para estructurar tu idea
+            No te preocupes por los detalles técnicos, solo cuéntanos qué quieres hacer
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onCreate} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
+              <Label htmlFor="title">¿Cómo se llama tu proyecto?</Label>
               <Input
                 id="title"
-                placeholder="Nombre de tu proyecto"
+                placeholder="Ej: App para vender ropa usada entre estudiantes"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
               />
+              <p className="text-xs text-muted-foreground">
+                Escribe un nombre simple, no te preocupes si no suena profesional aún
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="objective">Objetivo</Label>
+              <Label htmlFor="objective">¿Qué quieres lograr?</Label>
               <Textarea
                 id="objective"
-                placeholder="¿Qué quieres lograr con este proyecto?"
+                placeholder="Ej: Quiero ayudar a los estudiantes a ahorrar dinero en ropa y contribuir al medio ambiente"
                 value={objective}
                 onChange={(e) => setObjective(e.target.value)}
                 disabled={loading}
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                Cuéntanos el beneficio principal que quieres lograr
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="problem">Problema</Label>
+              <Label htmlFor="problem">¿Qué problema estás resolviendo?</Label>
               <Textarea
                 id="problem"
-                placeholder="¿Qué problema resuelve tu proyecto?"
+                placeholder="Ej: Los estudiantes no tienen mucho dinero y comprar ropa nueva es muy caro. Además, mucha ropa usada termina en la basura."
                 value={problem}
                 onChange={(e) => setProblem(e.target.value)}
                 disabled={loading}
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                ¿Quién tiene este problema y por qué les molesta?
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="scope">Alcance</Label>
+              <Label htmlFor="scope">¿Qué funcionalidades básicas debería tener?</Label>
               <Textarea
                 id="scope"
-                placeholder="Define el alcance y límites del proyecto"
+                placeholder="Ej: Los usuarios pueden subir fotos de su ropa, poner precios, chatear con compradores, y organizar entregas"
                 value={scope}
                 onChange={(e) => setScope(e.target.value)}
                 disabled={loading}
                 rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                Describe las cosas que los usuarios podrán hacer en tu app
+              </p>
             </div>
 
             <div className="space-y-4 rounded-lg border p-4">
-              <h3 className="text-sm font-medium">Validaciones</h3>
+              <h3 className="text-sm font-medium">Validaciones Opcionales</h3>
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="competition">Validar Competencia</Label>
                   <p className="text-sm text-muted-foreground">
-                    Analizar competidores del mercado
+                    Analizar si existen soluciones similares
                   </p>
                 </div>
                 <Switch
@@ -157,7 +169,7 @@ export default function IdeationIndex() {
                 <div className="space-y-0.5">
                   <Label htmlFor="monetization">Validar Monetización</Label>
                   <p className="text-sm text-muted-foreground">
-                    Evaluar modelos de ingresos posibles
+                    Pensar en cómo generar ingresos
                   </p>
                 </div>
                 <Switch
@@ -173,12 +185,12 @@ export default function IdeationIndex() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
+                  Estructurando tu idea con IA...
                 </>
               ) : (
                 <>
                   <Lightbulb className="mr-2 h-4 w-4" />
-                  Crear Idea
+                  Crear y Mejorar mi Idea
                 </>
               )}
             </Button>

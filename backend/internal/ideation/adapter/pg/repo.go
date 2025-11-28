@@ -74,6 +74,18 @@ func (r *repo) UpdateIdea(ctx context.Context, i *domain.Idea) error {
 	return err
 }
 
+func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
+	// Eliminar primero los mensajes relacionados (CASCADE)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM ideation_messages WHERE idea_id = $1`, id)
+	if err != nil {
+		return err
+	}
+
+	// Eliminar la idea
+	_, err = r.db.ExecContext(ctx, `DELETE FROM ideation_ideas WHERE id = $1`, id)
+	return err
+}
+
 func (r *repo) AppendMessage(ctx context.Context, m *domain.Message) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO ideation_messages (id, idea_id, role, content, created_at)

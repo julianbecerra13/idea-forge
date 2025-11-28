@@ -53,6 +53,11 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, err
 	}
 
+	// Validar que el usuario tenga password hash
+	if user == nil || user.PasswordHash == "" {
+		return nil, domain.ErrInvalidCredentials
+	}
+
 	// Verificar contraseña
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
 		return nil, domain.ErrInvalidCredentials

@@ -45,6 +45,10 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			h.getActionPlanByIdeaID(w, r)
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "/edit-section") {
+			h.editSection(w, r)
+			return
+		}
 		if r.Method == http.MethodGet {
 			h.getActionPlan(w, r)
 			return
@@ -445,6 +449,162 @@ func (h *Handlers) generateAndSaveInitialPlan(ctx context.Context, plan *domain.
 	plan.BusinessLogicFlow = result.BusinessLogicFlow
 
 	return h.Usecase.UpdateActionPlan(ctx, plan)
+}
+
+func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	// Extract plan ID from path: /action-plan/{id}/edit-section
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	planID, err := uuid.Parse(pathParts[1])
+	if err != nil {
+		http.Error(w, "invalid plan id", http.StatusBadRequest)
+		return
+	}
+
+	var in struct {
+		Section     string `json:"section"`
+		Message     string `json:"message"`
+		IdeaContext *struct {
+			Title     string `json:"title"`
+			Objective string `json:"objective"`
+			Problem   string `json:"problem"`
+			Scope     string `json:"scope"`
+		} `json:"idea_context"`
+		PlanContext *struct {
+			FunctionalRequirements    string `json:"functional_requirements"`
+			NonFunctionalRequirements string `json:"non_functional_requirements"`
+			BusinessLogicFlow         string `json:"business_logic_flow"`
+		} `json:"plan_context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	in.Message = strings.TrimSpace(in.Message)
+	if len(in.Message) == 0 {
+		http.Error(w, "message cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	// Validate section
+	validSections := map[string]bool{
+		"functional_requirements":     true,
+		"non_functional_requirements": true,
+		"business_logic_flow":         true,
+	}
+	if !validSections[in.Section] {
+		http.Error(w, "invalid section", http.StatusBadRequest)
+		return
+	}
+
+	plan, err := h.Usecase.GetActionPlan(r.Context(), planID)
+	if err != nil {
+		http.Error(w, "action plan not found", http.StatusNotFound)
+		return
+	}
+
+	// Call Genkit for section edit
+	reply, updatedSection, err := h.callGenkitEditSection(r.Context(), plan, in.Section, in.Message, in.IdeaContext, in.PlanContext)
+	if err != nil {
+		log.Printf("error calling genkit edit section: %v", err)
+		http.Error(w, "error calling agent", http.StatusBadGateway)
+		return
+	}
+
+	// Update the plan with the new section value if provided
+	if updatedSection != "" {
+		switch in.Section {
+		case "functional_requirements":
+			plan.FunctionalRequirements = updatedSection
+		case "non_functional_requirements":
+			plan.NonFunctionalRequirements = updatedSection
+		case "business_logic_flow":
+			plan.BusinessLogicFlow = updatedSection
+		}
+		if err := h.Usecase.UpdateActionPlan(r.Context(), plan); err != nil {
+			log.Printf("error updating plan after edit section: %v", err)
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"reply":          reply,
+		"updatedSection": updatedSection,
+	}, http.StatusOK)
+}
+
+func (h *Handlers) callGenkitEditSection(ctx context.Context, plan *domain.ActionPlan, section, message string, ideaContext interface{}, planContext interface{}) (string, string, error) {
+	genkitURL := os.Getenv("GENKIT_BASE_URL")
+	if genkitURL == "" {
+		genkitURL = "http://localhost:3001"
+	}
+
+	payload := map[string]interface{}{
+		"action_plan_id": plan.ID.String(),
+		"section":        section,
+		"message":        message,
+		"idea_context":   ideaContext,
+		"plan_context":   planContext,
+		"current_value": func() string {
+			switch section {
+			case "functional_requirements":
+				return plan.FunctionalRequirements
+			case "non_functional_requirements":
+				return plan.NonFunctionalRequirements
+			case "business_logic_flow":
+				return plan.BusinessLogicFlow
+			default:
+				return ""
+			}
+		}(),
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, genkitURL+"/action-plan/edit-section", bytes.NewReader(jsonData))
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+	if genkitToken != "" {
+		req.Header.Set("Authorization", "Bearer "+genkitToken)
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("genkit returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Reply          string `json:"reply"`
+		UpdatedSection string `json:"updated_section"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", err
+	}
+
+	return result.Reply, result.UpdatedSection, nil
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, status int) {

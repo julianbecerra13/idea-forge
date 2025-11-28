@@ -92,6 +92,9 @@ export const updateIdea = (id: string, payload: {
   completed?: boolean;
 }) => api.put(`/ideation/ideas/${id}`, payload).then((r) => r.data);
 
+export const deleteIdea = (id: string) =>
+  api.delete(`/ideation/ideas/${id}`);
+
 // Action Plan API
 export const createActionPlan = (ideaId: string) =>
   api.post(`/action-plan`, { idea_id: ideaId }).then((r) => r.data);

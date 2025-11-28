@@ -10,7 +10,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/dark/idea-forge/internal/ideation/usecase"
 	"github.com/google/uuid"
@@ -21,6 +20,7 @@ type Handlers struct {
 	Get        *usecase.GetIdea
 	List       *usecase.ListIdeas
 	Update     *usecase.UpdateIdea
+	Delete     *usecase.DeleteIdea
 	Append     *usecase.AppendMessage
 	HTTPClient *http.Client
 }
@@ -35,15 +35,23 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 		h.createIdea(w, r)
 	})
 
-	// /ideation/ideas/{id}  y  /ideation/ideas/{id}/messages
+	// /ideation/ideas/{id}  y  /ideation/ideas/{id}/messages  y  /ideation/ideas/{id}/edit-section
 	mux.HandleFunc("/ideation/ideas/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/messages") {
 			h.getMessages(w, r)
 			return
 		}
-		// GET o PUT para una idea específica
+		if strings.HasSuffix(r.URL.Path, "/edit-section") {
+			h.editSection(w, r)
+			return
+		}
+		// GET, PUT o DELETE para una idea específica
 		if r.Method == http.MethodPut {
 			h.updateIdea(w, r)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			h.deleteIdea(w, r)
 			return
 		}
 		h.getIdea(w, r)
@@ -71,27 +79,45 @@ func (h *Handlers) createIdea(w http.ResponseWriter, r *http.Request) {
 		ValidateMonetization bool   `json:"validate_monetization"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		log.Printf("Error decoding JSON: %v", err)
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Received idea data - title: %q, objective: %q, problem: %q, scope: %q",
+		in.Title, in.Objective, in.Problem, in.Scope)
+
+	// NUEVO: Mejorar la idea automáticamente con IA antes de guardar
+	improved, err := h.improveIdeaWithAI(r.Context(), in.Title, in.Objective, in.Problem, in.Scope)
+	if err != nil {
+		log.Printf("error improving idea with AI: %v, using original values", err)
+		// Si falla, usar valores originales
+		improved = map[string]string{
+			"title":     in.Title,
+			"objective": in.Objective,
+			"problem":   in.Problem,
+			"scope":     in.Scope,
+		}
+	}
+
+	log.Printf("Creating idea with values - title: %q, objective: %q, problem: %q, scope: %q",
+		improved["title"], improved["objective"], improved["problem"], improved["scope"])
+
+	// Crear idea con valores mejorados
 	idea, err := h.Create.Execute(
-		r.Context(), in.Title, in.Objective, in.Problem, in.Scope,
-		in.ValidateCompetition, in.ValidateMonetization,
+		r.Context(),
+		improved["title"],
+		improved["objective"],
+		improved["problem"],
+		improved["scope"],
+		in.ValidateCompetition,
+		in.ValidateMonetization,
 	)
 	if err != nil {
+		log.Printf("Error creating idea: %v", err)
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-
-	// Enviar mensaje inicial automático del agente
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := h.sendInitialAgentMessage(ctx, idea); err != nil {
-			log.Printf("error sending initial message: %v", err)
-		}
-	}()
 
 	writeJSON(w, idea, http.StatusOK)
 }
@@ -164,6 +190,29 @@ func (h *Handlers) updateIdea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, idea, http.StatusOK)
+}
+
+func (h *Handlers) deleteIdea(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extraer ID de la URL
+	path := strings.TrimPrefix(r.URL.Path, "/ideation/ideas/")
+	id, err := uuid.Parse(path)
+	if err != nil {
+		http.Error(w, "invalid idea ID", http.StatusBadRequest)
+		return
+	}
+
+	// Eliminar la idea
+	if err := h.Delete.Execute(r.Context(), id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handlers) chat(w http.ResponseWriter, r *http.Request) {
@@ -337,57 +386,6 @@ func (h *Handlers) getMessages(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, msgs, http.StatusOK)
 }
 
-func (h *Handlers) sendInitialAgentMessage(ctx context.Context, idea any) error {
-	// Convertir idea a map para el agente
-	ideaMap := map[string]any{
-		"title":     getField(idea, "Title"),
-		"objective": getField(idea, "Objective"),
-		"problem":   getField(idea, "Problem"),
-		"scope":     getField(idea, "Scope"),
-	}
-
-	payload, _ := json.Marshal(map[string]any{
-		"idea":    ideaMap,
-		"history": []any{},
-		"message": "", // Mensaje vacío para trigger inicial
-	})
-
-	url := os.Getenv("GENKIT_BASE_URL") + "/flows/ideationAgent"
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if tok := os.Getenv("GENKIT_TOKEN"); tok != "" {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	}
-
-	resp, err := h.HTTPClient.Do(req)
-	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("timeout sending initial message (30s exceeded): %w", err)
-		}
-		return fmt.Errorf("error calling genkit: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var out struct {
-		Reply string `json:"reply"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return err
-	}
-
-	// Guardar mensaje del asistente
-	ideaID := getField(idea, "ID")
-	if idStr, ok := ideaID.(string); ok {
-		if id, err := uuid.Parse(idStr); err == nil {
-			_, err := h.Append.Execute(ctx, id, "assistant", out.Reply)
-			return err
-		}
-	}
-	return nil
-}
 
 func getField(obj any, field string) any {
 	// Helper para extraer campos de struct via reflection simplificado
@@ -406,4 +404,158 @@ func getField(obj any, field string) any {
 		}
 	}
 	return nil
+}
+
+// improveIdeaWithAI llama al agente de IA para mejorar la idea inicial
+func (h *Handlers) improveIdeaWithAI(ctx context.Context, title, objective, problem, scope string) (map[string]string, error) {
+	payload, _ := json.Marshal(map[string]any{
+		"title":     title,
+		"objective": objective,
+		"problem":   problem,
+		"scope":     scope,
+	})
+
+	url := os.Getenv("GENKIT_BASE_URL") + "/ideation/improve-initial"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if tok := os.Getenv("GENKIT_TOKEN"); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error calling genkit: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Verificar status code de Genkit
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("genkit returned status %d", resp.StatusCode)
+	}
+
+	var out struct {
+		Title     string `json:"title"`
+		Objective string `json:"objective"`
+		Problem   string `json:"problem"`
+		Scope     string `json:"scope"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"title":     out.Title,
+		"objective": out.Objective,
+		"problem":   out.Problem,
+		"scope":     out.Scope,
+	}, nil
+}
+
+// editSection maneja la edición de una sección específica con IA
+func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Limitar tamaño del body a 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	// Extraer ID de la URL: /ideation/ideas/{id}/edit-section
+	path := strings.TrimPrefix(r.URL.Path, "/ideation/ideas/")
+	idStr := strings.TrimSuffix(path, "/edit-section")
+
+	ideaID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "invalid idea id", http.StatusBadRequest)
+		return
+	}
+
+	var in struct {
+		Section string `json:"section"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	// Validar inputs
+	if in.Section == "" || in.Message == "" {
+		http.Error(w, "section and message are required", http.StatusBadRequest)
+		return
+	}
+
+	validSections := []string{"title", "objective", "problem", "scope"}
+	isValid := false
+	for _, s := range validSections {
+		if in.Section == s {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		http.Error(w, "invalid section", http.StatusBadRequest)
+		return
+	}
+
+	// Cargar idea para obtener el contexto completo
+	idea, err := h.Get.Execute(r.Context(), ideaID)
+	if err != nil {
+		http.Error(w, "idea not found", http.StatusNotFound)
+		return
+	}
+
+	// Preparar payload para Genkit
+	payload, _ := json.Marshal(map[string]any{
+		"section": in.Section,
+		"message": in.Message,
+		"idea": map[string]string{
+			"title":     idea.Title,
+			"objective": idea.Objective,
+			"problem":   idea.Problem,
+			"scope":     idea.Scope,
+		},
+	})
+
+	url := os.Getenv("GENKIT_BASE_URL") + "/ideation/edit-section"
+	req, err := http.NewRequestWithContext(r.Context(), "POST", url, bytes.NewReader(payload))
+	if err != nil {
+		http.Error(w, "error creating request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if tok := os.Getenv("GENKIT_TOKEN"); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		log.Printf("error calling genkit: %v", err)
+		http.Error(w, "error calling AI service", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("genkit returned status %d for edit-section", resp.StatusCode)
+		// Cualquier error de Genkit (429, 500, etc.) se considera servicio no disponible temporalmente
+		// porque generalmente son problemas de cuota o límite de tasa de la API de IA
+		http.Error(w, "AI service temporarily unavailable. Please try again in a few minutes.", http.StatusServiceUnavailable)
+		return
+	}
+
+	var out struct {
+		Reply          string `json:"reply"`
+		UpdatedSection string `json:"updatedSection"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		http.Error(w, "error decoding response", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, out, http.StatusOK)
 }

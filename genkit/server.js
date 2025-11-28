@@ -32,6 +32,45 @@ function sanitizeForPrompt(text) {
     .substring(0, 5000);       // Limitar longitud máxima
 }
 
+// Función para parsear JSON de forma segura (limpia caracteres problemáticos)
+function safeParseJSON(text, defaultValue = {}) {
+  if (!text) return defaultValue;
+
+  let cleanText = text;
+
+  // Intentar parsear directamente primero
+  try {
+    return JSON.parse(cleanText);
+  } catch (firstErr) {
+    // Si falla, intentar limpiar el texto
+  }
+
+  // Extraer solo el JSON si hay texto adicional
+  const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleanText = jsonMatch[0];
+  }
+
+  // Limpiar caracteres de control dentro de strings JSON
+  // Primero, reemplazar newlines literales dentro de valores de string
+  cleanText = cleanText.replace(/:\s*"([^"]*?)"/g, (match, content) => {
+    const cleanContent = content
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '')
+      .replace(/\t/g, '\\t')
+      .replace(/[\x00-\x1F\x7F]/g, '');
+    return `: "${cleanContent}"`;
+  });
+
+  try {
+    return JSON.parse(cleanText);
+  } catch (err) {
+    console.error("[safeParseJSON] Parse error after cleanup:", err.message);
+    console.error("[safeParseJSON] Text was:", cleanText.substring(0, 200));
+    return defaultValue;
+  }
+}
+
 function checkAuth(req, res, next) {
   if (!TOKEN) return next();
   const h = req.get("Authorization") || "";
@@ -152,7 +191,7 @@ FORMATO DE RESPUESTA JSON:
     }
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
         responseMimeType: "application/json"
@@ -257,7 +296,7 @@ EJEMPLOS DE BUENAS RESPUESTAS:
     }
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
         responseMimeType: "application/json"
@@ -329,7 +368,7 @@ RESPONDE EN FORMATO JSON:
 `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.8,
         responseMimeType: "application/json"
@@ -339,16 +378,11 @@ RESPONDE EN FORMATO JSON:
     const result = await model.generateContent(prompt);
     const text = result?.response?.text?.() ?? "{}";
 
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = {
-        functional_requirements: "",
-        non_functional_requirements: "",
-        business_logic_flow: ""
-      };
-    }
+    const parsed = safeParseJSON(text, {
+      functional_requirements: "",
+      non_functional_requirements: "",
+      business_logic_flow: ""
+    });
 
     res.json(parsed);
   } catch (e) {
@@ -461,7 +495,7 @@ RESPONDE ÚNICAMENTE EN FORMATO JSON:
 `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
         responseMimeType: "application/json",
@@ -472,20 +506,15 @@ RESPONDE ÚNICAMENTE EN FORMATO JSON:
     const result = await model.generateContent(prompt);
     const text = result?.response?.text?.() ?? "{}";
 
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = {
-        user_stories: "",
-        database_type: "",
-        database_schema: "",
-        entities_relationships: "",
-        tech_stack: "",
-        architecture_pattern: "",
-        system_architecture: ""
-      };
-    }
+    const parsed = safeParseJSON(text, {
+      user_stories: "",
+      database_type: "",
+      database_schema: "",
+      entities_relationships: "",
+      tech_stack: "",
+      architecture_pattern: "",
+      system_architecture: ""
+    });
 
     res.json(parsed);
   } catch (e) {
@@ -578,7 +607,7 @@ RESPONDE EN FORMATO JSON:
 `.trim();
 
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
         responseMimeType: "application/json",
@@ -599,6 +628,95 @@ RESPONDE EN FORMATO JSON:
     res.json(parsed);
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Endpoint para mejorar la idea inicial (cuando se crea una nueva idea)
+app.post("/ideation/improve-initial", checkAuth, async (req, res) => {
+  try {
+    const { title, objective, problem, scope } = req.body || {};
+
+    // Sanitizar inputs
+    const sanitizedTitle = sanitizeForPrompt(title || "");
+    const sanitizedObjective = sanitizeForPrompt(objective || "");
+    const sanitizedProblem = sanitizeForPrompt(problem || "");
+    const sanitizedScope = sanitizeForPrompt(scope || "");
+
+    const prompt = `
+Eres un experto en ideación de proyectos de software. El usuario ha creado una nueva idea con información básica.
+
+IDEA INICIAL:
+- Título: "${sanitizedTitle}"
+- Objetivo: "${sanitizedObjective || "No especificado"}"
+- Problema: "${sanitizedProblem || "No especificado"}"
+- Alcance: "${sanitizedScope || "No especificado"}"
+
+Tu tarea es MEJORAR y EXPANDIR cada campo con información más detallada y estructurada:
+
+1. **Título**: Si es muy corto o genérico, hazlo más descriptivo. Si ya es bueno, mantenlo igual.
+
+2. **Objetivo**: Expande el objetivo con:
+   - Propósito claro del sistema
+   - Métricas de éxito (si aplica)
+   - Valor que aporta al usuario
+
+3. **Problema**: Detalla el problema con:
+   - El dolor específico que resuelve
+   - Quién sufre este problema
+   - Consecuencias de no resolverlo
+
+4. **Alcance**: Define el alcance con:
+   - Funcionalidades core del MVP
+   - Límites claros (qué NO incluye)
+   - Usuarios objetivo
+
+IMPORTANTE:
+- Mantén la esencia de la idea original
+- Usa el idioma del usuario (si escribe en español, responde en español)
+- Sé específico pero conciso (2-4 oraciones por campo)
+- Si un campo está vacío, genera contenido basándote en el título
+
+RESPONDE ÚNICAMENTE EN FORMATO JSON:
+{
+  "title": "Título mejorado",
+  "objective": "Objetivo expandido con detalles",
+  "problem": "Problema detallado con contexto",
+  "scope": "Alcance claro con funcionalidades"
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    let parsed = safeParseJSON(text, {
+      title: title || "",
+      objective: objective || "",
+      problem: problem || "",
+      scope: scope || ""
+    });
+
+    // Si Gemini devuelve un array, extraer el primer elemento
+    if (Array.isArray(parsed)) {
+      parsed = parsed[0] || {
+        title: title || "",
+        objective: objective || "",
+        problem: problem || "",
+        scope: scope || ""
+      };
+    }
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/ideation/improve-initial] Error:", e);
     res.status(500).json({ error: String(e) });
   }
 });

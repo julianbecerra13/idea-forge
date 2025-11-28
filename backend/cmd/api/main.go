@@ -47,6 +47,7 @@ func main() {
 	get := ideationuc.NewGetIdea(repo)
 	list := ideationuc.NewListIdeas(repo)
 	update := ideationuc.NewUpdateIdea(repo)
+	deleteIdea := ideationuc.NewDeleteIdea(repo)
 	appendMsg := ideationuc.NewAppendMessage(repo)
 
 	// Configurar HTTP client con timeout para llamadas a servicios externos
@@ -67,6 +68,7 @@ func main() {
 		Get:        get,
 		List:       list,
 		Update:     update,
+		Delete:     deleteIdea,
 		Append:     appendMsg,
 		HTTPClient: httpClient,
 	}

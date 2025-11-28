@@ -47,6 +47,10 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			h.getArchitectureByActionPlanID(w, r)
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "/edit-section") {
+			h.editSection(w, r)
+			return
+		}
 		if r.Method == http.MethodGet {
 			h.getArchitecture(w, r)
 			return
@@ -153,6 +157,35 @@ func (h *Handlers) generateAndSaveInitialContent(ctx context.Context, arch *doma
 		return fmt.Errorf("genkit returned status %d", resp.StatusCode)
 	}
 
+	// Decodificar respuesta de Genkit
+	var aiResponse struct {
+		UserStories           string `json:"user_stories"`
+		DatabaseType          string `json:"database_type"`
+		DatabaseSchema        string `json:"database_schema"`
+		EntitiesRelationships string `json:"entities_relationships"`
+		TechStack             string `json:"tech_stack"`
+		ArchitecturePattern   string `json:"architecture_pattern"`
+		SystemArchitecture    string `json:"system_architecture"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&aiResponse); err != nil {
+		return fmt.Errorf("failed to decode genkit response: %w", err)
+	}
+
+	// Actualizar la arquitectura con el contenido generado
+	arch.UserStories = aiResponse.UserStories
+	arch.DatabaseType = aiResponse.DatabaseType
+	arch.DatabaseSchema = aiResponse.DatabaseSchema
+	arch.EntitiesRelationships = aiResponse.EntitiesRelationships
+	arch.TechStack = aiResponse.TechStack
+	arch.ArchitecturePattern = aiResponse.ArchitecturePattern
+	arch.SystemArchitecture = aiResponse.SystemArchitecture
+
+	if err := h.Usecase.UpdateArchitecture(ctx, arch); err != nil {
+		return fmt.Errorf("failed to save architecture content: %w", err)
+	}
+
+	log.Printf("Architecture %s updated with AI-generated content", arch.ID)
 	return nil
 }
 
@@ -385,6 +418,175 @@ func (h *Handlers) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]string{"response": genkitResp.Response}, http.StatusOK)
+}
+
+func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	// Extract architecture ID from path: /architecture/{id}/edit-section
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	archID, err := uuid.Parse(pathParts[1])
+	if err != nil {
+		http.Error(w, "invalid architecture id", http.StatusBadRequest)
+		return
+	}
+
+	var in struct {
+		Section             string `json:"section"`
+		Message             string `json:"message"`
+		IdeaContext         interface{} `json:"idea_context"`
+		PlanContext         interface{} `json:"plan_context"`
+		ArchitectureContext interface{} `json:"architecture_context"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	in.Message = strings.TrimSpace(in.Message)
+	if len(in.Message) == 0 {
+		http.Error(w, "message cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	// Validate section
+	validSections := map[string]bool{
+		"user_stories":           true,
+		"database_type":          true,
+		"database_schema":        true,
+		"entities_relationships": true,
+		"tech_stack":             true,
+		"architecture_pattern":   true,
+		"system_architecture":    true,
+	}
+	if !validSections[in.Section] {
+		http.Error(w, "invalid section", http.StatusBadRequest)
+		return
+	}
+
+	arch, err := h.Usecase.GetArchitecture(r.Context(), archID)
+	if err != nil {
+		http.Error(w, "architecture not found", http.StatusNotFound)
+		return
+	}
+
+	// Call Genkit for section edit
+	reply, updatedSection, err := h.callGenkitEditSection(r.Context(), arch, in.Section, in.Message, in.IdeaContext, in.PlanContext, in.ArchitectureContext)
+	if err != nil {
+		log.Printf("error calling genkit edit section: %v", err)
+		http.Error(w, "error calling agent", http.StatusBadGateway)
+		return
+	}
+
+	// Update the architecture with the new section value if provided
+	if updatedSection != "" {
+		switch in.Section {
+		case "user_stories":
+			arch.UserStories = updatedSection
+		case "database_type":
+			arch.DatabaseType = updatedSection
+		case "database_schema":
+			arch.DatabaseSchema = updatedSection
+		case "entities_relationships":
+			arch.EntitiesRelationships = updatedSection
+		case "tech_stack":
+			arch.TechStack = updatedSection
+		case "architecture_pattern":
+			arch.ArchitecturePattern = updatedSection
+		case "system_architecture":
+			arch.SystemArchitecture = updatedSection
+		}
+		if err := h.Usecase.UpdateArchitecture(r.Context(), arch); err != nil {
+			log.Printf("error updating architecture after edit section: %v", err)
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"reply":          reply,
+		"updatedSection": updatedSection,
+	}, http.StatusOK)
+}
+
+func (h *Handlers) callGenkitEditSection(ctx context.Context, arch *domain.Architecture, section, message string, ideaContext, planContext, architectureContext interface{}) (string, string, error) {
+	genkitURL := os.Getenv("GENKIT_BASE_URL")
+	if genkitURL == "" {
+		genkitURL = "http://localhost:3001"
+	}
+
+	payload := map[string]interface{}{
+		"architecture_id":      arch.ID.String(),
+		"section":              section,
+		"message":              message,
+		"idea_context":         ideaContext,
+		"plan_context":         planContext,
+		"architecture_context": architectureContext,
+		"current_value": func() string {
+			switch section {
+			case "user_stories":
+				return arch.UserStories
+			case "database_type":
+				return arch.DatabaseType
+			case "database_schema":
+				return arch.DatabaseSchema
+			case "entities_relationships":
+				return arch.EntitiesRelationships
+			case "tech_stack":
+				return arch.TechStack
+			case "architecture_pattern":
+				return arch.ArchitecturePattern
+			case "system_architecture":
+				return arch.SystemArchitecture
+			default:
+				return ""
+			}
+		}(),
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, genkitURL+"/architecture/edit-section", bytes.NewReader(jsonData))
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+	if genkitToken != "" {
+		req.Header.Set("Authorization", "Bearer "+genkitToken)
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("genkit returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Reply          string `json:"reply"`
+		UpdatedSection string `json:"updated_section"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", err
+	}
+
+	return result.Reply, result.UpdatedSection, nil
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, status int) {
