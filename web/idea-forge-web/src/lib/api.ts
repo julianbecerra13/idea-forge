@@ -196,3 +196,33 @@ export const propagateToIdeation = (id: string, payload: {
   scope?: string;
   source: string;
 }) => api.post(`/ideation/ideas/${id}/propagate`, payload).then((r) => r.data);
+
+// Development Modules API
+export const getModulesByArchitectureId = (architectureId: string) =>
+  api.get(`/dev-modules/by-architecture/${architectureId}`).then((r) => r.data);
+
+export const getModule = (id: string) =>
+  api.get(`/dev-modules/${id}`).then((r) => r.data);
+
+export const updateModule = (id: string, payload: {
+  name?: string;
+  description?: string;
+  functionality?: string;
+  dependencies?: string;
+  technical_details?: string;
+  priority?: number;
+  status?: string;
+}) => api.put(`/dev-modules/${id}`, payload).then((r) => r.data);
+
+export const createModule = (payload: {
+  architecture_id: string;
+  name: string;
+  description: string;
+}) => api.post(`/dev-modules`, payload).then((r) => r.data);
+
+// Global Chat API
+export const getGlobalChatMessages = (ideaId: string) =>
+  api.get(`/global-chat/messages/${ideaId}`).then((r) => r.data);
+
+export const postGlobalChat = (ideaId: string, message: string) =>
+  api.post(`/global-chat`, { idea_id: ideaId, message }).then((r) => r.data);

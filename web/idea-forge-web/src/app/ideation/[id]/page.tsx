@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getIdea, getActionPlanByIdeaId, updateIdea, createActionPlan } from "@/lib/api";
 import IdeaCardsEditable from "@/components/IdeaCardsEditable";
 import ModuleStepper from "@/components/modules/ModuleStepper";
+import GlobalSidePanel from "@/components/GlobalSidePanel";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -238,6 +239,12 @@ export default function IdeationPage({ params }: { params: Params }) {
           </Button>
         </div>
       )}
+
+      {/* Global Side Panel */}
+      <GlobalSidePanel
+        ideaId={idea.ID}
+        onModulesChange={loadIdea}
+      />
     </div>
   );
 }

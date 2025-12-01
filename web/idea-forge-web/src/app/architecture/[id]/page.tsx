@@ -1,9 +1,10 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { getArchitecture, getActionPlan, getIdea } from "@/lib/api";
+import { getArchitecture, getActionPlan, getIdea, getModulesByArchitectureId } from "@/lib/api";
 import ArchitectureCardsEditable from "@/components/ArchitectureCardsEditable";
 import ModuleStepper from "@/components/modules/ModuleStepper";
+import GlobalSidePanel from "@/components/GlobalSidePanel";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Code } from "lucide-react";
@@ -58,6 +59,18 @@ type PlanContext = {
   business_logic_flow: string;
 };
 
+type DevelopmentModule = {
+  id: string;
+  architecture_id: string;
+  name: string;
+  description: string;
+  functionality: string;
+  dependencies: string;
+  technical_details: string;
+  priority: number;
+  status: string;
+};
+
 export default function ArchitecturePage({ params }: { params: Params }) {
   const { id } = use(params);
   const [architecture, setArchitecture] = useState<Architecture | null>(null);
@@ -65,6 +78,7 @@ export default function ArchitecturePage({ params }: { params: Params }) {
   const [idea, setIdea] = useState<Idea | null>(null);
   const [ideaContext, setIdeaContext] = useState<IdeaContext | undefined>(undefined);
   const [planContext, setPlanContext] = useState<PlanContext | undefined>(undefined);
+  const [devModules, setDevModules] = useState<DevelopmentModule[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { state, clearModuleUpdate } = usePropagation();
@@ -74,6 +88,15 @@ export default function ArchitecturePage({ params }: { params: Params }) {
       setLoading(true);
       const archData = await getArchitecture(id);
       setArchitecture(archData);
+
+      // Cargar módulos de desarrollo
+      try {
+        const modulesData = await getModulesByArchitectureId(archData.id);
+        setDevModules(modulesData || []);
+      } catch (error) {
+        console.error("Error loading dev modules:", error);
+        setDevModules([]);
+      }
 
       // Cargar action plan para el stepper y contexto
       if (archData.action_plan_id) {
@@ -174,6 +197,17 @@ export default function ArchitecturePage({ params }: { params: Params }) {
         planContext={planContext}
         onUpdate={loadArchitecture}
       />
+
+      {/* Global Side Panel */}
+      {idea && (
+        <GlobalSidePanel
+          ideaId={idea.ID}
+          architectureId={architecture.id}
+          modules={devModules}
+          onModulesChange={loadArchitecture}
+          autoOpen={true}
+        />
+      )}
     </div>
   );
 }

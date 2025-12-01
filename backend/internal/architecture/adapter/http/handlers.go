@@ -27,6 +27,23 @@ type Handlers struct {
 	IdeaUsecase interface {
 		Execute(ctx context.Context, id uuid.UUID) (*ideadomain.Idea, error)
 	}
+	DevModuleUsecase interface {
+		CreateModules(ctx context.Context, modules []DevModule) error
+		GetModulesByArchitectureID(ctx context.Context, architectureID uuid.UUID) ([]DevModule, error)
+	}
+}
+
+// DevModule represents a development module (matches devmodule domain)
+type DevModule struct {
+	ID               uuid.UUID
+	ArchitectureID   uuid.UUID
+	Name             string
+	Description      string
+	Functionality    string
+	Dependencies     string
+	TechnicalDetails string
+	Priority         int
+	Status           string
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
@@ -100,19 +117,19 @@ func (h *Handlers) createArchitecture(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Obtener idea para contexto completo
+	var idea *ideadomain.Idea
 	if actionPlan != nil {
-		idea, err := h.IdeaUsecase.Execute(r.Context(), actionPlan.IdeaID)
+		idea, err = h.IdeaUsecase.Execute(r.Context(), actionPlan.IdeaID)
 		if err != nil {
 			log.Printf("error fetching idea: %v", err)
 		}
-		_ = idea
 	}
 
 	// Generar contenido inicial con IA
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	if err := h.generateAndSaveInitialContent(ctx, arch, actionPlan); err != nil {
+	if err := h.generateAndSaveInitialContent(ctx, arch, actionPlan, idea); err != nil {
 		log.Printf("error generating initial architecture: %v", err)
 	}
 
@@ -124,25 +141,36 @@ func (h *Handlers) createArchitecture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, updatedArch, http.StatusOK)
+	// Get generated modules
+	var modules []DevModule
+	if h.DevModuleUsecase != nil {
+		modules, _ = h.DevModuleUsecase.GetModulesByArchitectureID(r.Context(), arch.ID)
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"architecture": updatedArch,
+		"modules":      modules,
+	}, http.StatusOK)
 }
 
-func (h *Handlers) generateAndSaveInitialContent(ctx context.Context, arch *domain.Architecture, actionPlan *actionplandomain.ActionPlan) error {
+func (h *Handlers) generateAndSaveInitialContent(ctx context.Context, arch *domain.Architecture, actionPlan *actionplandomain.ActionPlan, idea *ideadomain.Idea) error {
 	genkitURL := os.Getenv("GENKIT_BASE_URL")
 	if genkitURL == "" {
 		genkitURL = "http://localhost:3001"
 	}
 
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+
+	// 1. Generate architecture content
 	payload := map[string]interface{}{
 		"architecture_id": arch.ID.String(),
 		"action_plan":     actionPlan,
+		"idea":            idea,
 	}
 
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequestWithContext(ctx, "POST", genkitURL+"/architecture/generate-initial", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-
-	genkitToken := os.Getenv("GENKIT_TOKEN")
 	if genkitToken != "" {
 		req.Header.Set("Authorization", "Bearer "+genkitToken)
 	}
@@ -186,6 +214,85 @@ func (h *Handlers) generateAndSaveInitialContent(ctx context.Context, arch *doma
 	}
 
 	log.Printf("Architecture %s updated with AI-generated content", arch.ID)
+
+	// 2. Generate development modules
+	if h.DevModuleUsecase != nil {
+		if err := h.generateAndSaveModules(ctx, arch, actionPlan, idea); err != nil {
+			log.Printf("error generating modules: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (h *Handlers) generateAndSaveModules(ctx context.Context, arch *domain.Architecture, actionPlan *actionplandomain.ActionPlan, idea *ideadomain.Idea) error {
+	genkitURL := os.Getenv("GENKIT_BASE_URL")
+	if genkitURL == "" {
+		genkitURL = "http://localhost:3001"
+	}
+
+	payload := map[string]interface{}{
+		"idea":         idea,
+		"action_plan":  actionPlan,
+		"architecture": arch,
+	}
+
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequestWithContext(ctx, "POST", genkitURL+"/architecture/generate-modules", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	genkitToken := os.Getenv("GENKIT_TOKEN")
+	if genkitToken != "" {
+		req.Header.Set("Authorization", "Bearer "+genkitToken)
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("genkit request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("genkit returned status %d", resp.StatusCode)
+	}
+
+	var aiResponse struct {
+		Modules []struct {
+			Name             string   `json:"name"`
+			Description      string   `json:"description"`
+			Functionality    string   `json:"functionality"`
+			TechnicalDetails string   `json:"technical_details"`
+			Dependencies     []string `json:"dependencies"`
+		} `json:"modules"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&aiResponse); err != nil {
+		return fmt.Errorf("failed to decode modules response: %w", err)
+	}
+
+	// Convert to DevModule and save
+	var modules []DevModule
+	for i, m := range aiResponse.Modules {
+		depsJSON, _ := json.Marshal(m.Dependencies)
+		modules = append(modules, DevModule{
+			ArchitectureID:   arch.ID,
+			Name:             m.Name,
+			Description:      m.Description,
+			Functionality:    m.Functionality,
+			TechnicalDetails: m.TechnicalDetails,
+			Dependencies:     string(depsJSON),
+			Priority:         i,
+			Status:           "pending",
+		})
+	}
+
+	if len(modules) > 0 {
+		if err := h.DevModuleUsecase.CreateModules(ctx, modules); err != nil {
+			return fmt.Errorf("failed to save modules: %w", err)
+		}
+		log.Printf("Created %d development modules for architecture %s", len(modules), arch.ID)
+	}
+
 	return nil
 }
 

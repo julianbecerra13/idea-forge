@@ -1149,6 +1149,245 @@ RESPONDE ÚNICAMENTE EN FORMATO JSON (EN ESPAÑOL):
   }
 });
 
+// Endpoint para generar módulos de desarrollo automáticamente
+app.post("/architecture/generate-modules", checkAuth, async (req, res) => {
+  try {
+    const { idea, action_plan, architecture } = req.body || {};
+
+    let context = "";
+    if (idea) {
+      context += `
+IDEA DEL PROYECTO:
+- Título: ${sanitizeForPrompt(idea.Title || idea.title || "")}
+- Objetivo: ${sanitizeForPrompt(idea.Objective || idea.objective || "")}
+- Problema: ${sanitizeForPrompt(idea.Problem || idea.problem || "")}
+- Alcance: ${sanitizeForPrompt(idea.Scope || idea.scope || "")}
+`;
+    }
+
+    if (action_plan) {
+      context += `
+PLAN DE ACCIÓN:
+- Requerimientos Funcionales: ${sanitizeForPrompt(action_plan.functional_requirements || "")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(action_plan.non_functional_requirements || "")}
+- Flujo de Negocio: ${sanitizeForPrompt(action_plan.business_logic_flow || "")}
+`;
+    }
+
+    if (architecture) {
+      context += `
+ARQUITECTURA:
+- Historias de Usuario: ${sanitizeForPrompt(architecture.user_stories || "")}
+- Tipo BD: ${sanitizeForPrompt(architecture.database_type || "")}
+- Stack Tecnológico: ${sanitizeForPrompt(architecture.tech_stack || "")}
+- Patrón de Arquitectura: ${sanitizeForPrompt(architecture.architecture_pattern || "")}
+`;
+    }
+
+    const prompt = `
+Eres un Arquitecto de Software Senior. Basándote en el contexto del proyecto, debes identificar y definir los MÓDULOS DE DESARROLLO necesarios para construir el sistema.
+
+${context}
+
+Tu tarea es generar una lista de módulos de desarrollo. Cada módulo debe ser una unidad funcional independiente que se pueda desarrollar por separado.
+
+INSTRUCCIONES:
+1. **RESPONDE SIEMPRE EN ESPAÑOL**
+2. Identifica entre 4-8 módulos principales basándote en las funcionalidades del proyecto
+3. Cada módulo debe tener:
+   - name: Nombre corto del módulo (ej: "Autenticación", "Gestión de Usuarios", "Pagos")
+   - description: Descripción breve de qué hace el módulo (1-2 oraciones)
+   - functionality: Lista detallada de funcionalidades que incluye
+   - technical_details: Detalles técnicos de implementación (APIs, librerías, patrones)
+   - dependencies: Lista de otros módulos de los que depende (nombres)
+4. Ordena los módulos por prioridad de desarrollo (los más fundamentales primero)
+
+RESPONDE ÚNICAMENTE EN FORMATO JSON:
+{
+  "modules": [
+    {
+      "name": "Nombre del Módulo",
+      "description": "Descripción breve",
+      "functionality": "- Funcionalidad 1\\n- Funcionalidad 2\\n- ...",
+      "technical_details": "Detalles técnicos de implementación",
+      "dependencies": ["Módulo del que depende", "..."]
+    }
+  ]
+}
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        maxOutputTokens: 4000
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    const parsed = safeParseJSON(text, { modules: [] });
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/architecture/generate-modules] Error:", e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Endpoint para chat global que puede editar todos los módulos
+app.post("/global-chat", checkAuth, async (req, res) => {
+  try {
+    const { message, idea, action_plan, architecture, modules } = req.body || {};
+
+    const sanitizedMessage = sanitizeForPrompt(message);
+
+    // Construir contexto completo
+    let context = "";
+
+    if (idea) {
+      context += `
+## IDEACIÓN (Módulo 1)
+- Título: "${sanitizeForPrompt(idea.Title || idea.title || "")}"
+- Objetivo: "${sanitizeForPrompt(idea.Objective || idea.objective || "")}"
+- Problema: "${sanitizeForPrompt(idea.Problem || idea.problem || "")}"
+- Alcance: "${sanitizeForPrompt(idea.Scope || idea.scope || "")}"
+`;
+    }
+
+    if (action_plan) {
+      context += `
+## PLAN DE ACCIÓN (Módulo 2)
+- Requerimientos Funcionales: ${sanitizeForPrompt(action_plan.functional_requirements || action_plan.FunctionalRequirements || "No definidos")}
+- Requerimientos No Funcionales: ${sanitizeForPrompt(action_plan.non_functional_requirements || action_plan.NonFunctionalRequirements || "No definidos")}
+- Flujo de Negocio: ${sanitizeForPrompt(action_plan.business_logic_flow || action_plan.BusinessLogicFlow || "No definido")}
+`;
+    }
+
+    if (architecture) {
+      context += `
+## ARQUITECTURA (Módulo 3)
+- Historias de Usuario: ${sanitizeForPrompt(architecture.user_stories || architecture.UserStories || "No definidas")}
+- Tipo de BD: ${sanitizeForPrompt(architecture.database_type || architecture.DatabaseType || "No definido")}
+- Esquema de BD: ${sanitizeForPrompt(architecture.database_schema || architecture.DatabaseSchema || "No definido")}
+- Entidades: ${sanitizeForPrompt(architecture.entities_relationships || architecture.EntitiesRelationships || "No definidas")}
+- Stack Tecnológico: ${sanitizeForPrompt(architecture.tech_stack || architecture.TechStack || "No definido")}
+- Patrón: ${sanitizeForPrompt(architecture.architecture_pattern || architecture.ArchitecturePattern || "No definido")}
+- Arquitectura del Sistema: ${sanitizeForPrompt(architecture.system_architecture || architecture.SystemArchitecture || "No definida")}
+`;
+    }
+
+    if (modules && modules.length > 0) {
+      context += `
+## MÓDULOS DE DESARROLLO
+${modules.map(m => `- ${m.name || m.Name}: ${m.description || m.Description || "Sin descripción"}`).join("\\n")}
+`;
+    }
+
+    const prompt = `
+Eres un Asistente de Proyecto experto que tiene acceso completo a todos los módulos del sistema:
+- Ideación (idea del proyecto)
+- Plan de Acción (requerimientos)
+- Arquitectura (diseño técnico)
+- Módulos de Desarrollo (componentes a construir)
+
+${context}
+
+MENSAJE DEL USUARIO: "${sanitizedMessage}"
+
+INSTRUCCIONES CRÍTICAS:
+1. **RESPONDE SIEMPRE EN ESPAÑOL**
+2. Analiza el mensaje del usuario y determina:
+   a) ¿Es un cambio GLOBAL que afecta múltiples módulos? (ej: "agregar marketing al proyecto")
+   b) ¿Es un cambio ESPECÍFICO de una sección? (ej: "cambia el título")
+   c) ¿Requiere crear un NUEVO módulo de desarrollo?
+
+3. Si es cambio GLOBAL:
+   - Identifica TODOS los módulos que deben actualizarse
+   - Para cada módulo afectado, proporciona el contenido COMPLETO actualizado
+
+4. Si es cambio ESPECÍFICO:
+   - Solo actualiza la sección correspondiente
+
+5. Si requiere NUEVO MÓDULO de desarrollo:
+   - Genera la información completa del nuevo módulo
+
+6. Tu respuesta conversacional debe:
+   - Explicar qué cambios se harán
+   - Ser clara y concisa
+   - Confirmar las actualizaciones realizadas
+
+RESPONDE EN FORMATO JSON:
+{
+  "reply": "Tu respuesta conversacional explicando los cambios (EN ESPAÑOL)",
+  "is_global": true o false,
+  "propagation": {
+    "ideation": {
+      "title": "nuevo título o null si no cambia",
+      "objective": "nuevo objetivo o null",
+      "problem": "nuevo problema o null",
+      "scope": "nuevo alcance o null"
+    },
+    "action_plan": {
+      "functional_requirements": "nuevos requerimientos o null",
+      "non_functional_requirements": "nuevos o null",
+      "business_logic_flow": "nuevo flujo o null"
+    },
+    "architecture": {
+      "user_stories": "nuevas historias o null",
+      "database_type": "nuevo tipo o null",
+      "database_schema": "nuevo esquema o null",
+      "entities_relationships": "nuevas entidades o null",
+      "tech_stack": "nuevo stack o null",
+      "architecture_pattern": "nuevo patrón o null",
+      "system_architecture": "nueva arquitectura o null"
+    }
+  },
+  "new_modules": [
+    {
+      "name": "Nombre del nuevo módulo (si aplica)",
+      "description": "Descripción",
+      "functionality": "Funcionalidades",
+      "technical_details": "Detalles técnicos"
+    }
+  ]
+}
+
+REGLAS DE PROPAGACIÓN:
+- Usa null para campos que NO necesitan cambios
+- Solo incluye contenido COMPLETO cuando un campo SÍ cambia
+- new_modules debe estar vacío [] si no se necesitan nuevos módulos
+- Sé inteligente: "agregar marketing" debe actualizar alcance, requerimientos, historias de usuario Y crear módulo de Marketing
+`.trim();
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        maxOutputTokens: 8000
+      }
+    });
+
+    const result = await model.generateContent(prompt);
+    const text = result?.response?.text?.() ?? "{}";
+
+    const parsed = safeParseJSON(text, {
+      reply: "Lo siento, hubo un error al procesar tu solicitud.",
+      is_global: false,
+      propagation: {},
+      new_modules: []
+    });
+
+    res.json(parsed);
+  } catch (e) {
+    console.error("[/global-chat] Error:", e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => {

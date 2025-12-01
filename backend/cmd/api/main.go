@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
 	appdb "github.com/dark/idea-forge/internal/db"
@@ -20,6 +22,11 @@ import (
 	architecturepg "github.com/dark/idea-forge/internal/architecture/adapter/pg"
 	architecturehttp "github.com/dark/idea-forge/internal/architecture/adapter/http"
 	architectureuc "github.com/dark/idea-forge/internal/architecture/usecase"
+
+	devmodulepg "github.com/dark/idea-forge/internal/devmodule/adapter/pg"
+	devmodulehttp "github.com/dark/idea-forge/internal/devmodule/adapter/http"
+	devmoduleuc "github.com/dark/idea-forge/internal/devmodule/usecase"
+	devmoduledomain "github.com/dark/idea-forge/internal/devmodule/domain"
 
 	authpg "github.com/dark/idea-forge/internal/auth/adapter/pg"
 	authhttp "github.com/dark/idea-forge/internal/auth/adapter/http"
@@ -84,6 +91,10 @@ func main() {
 	}
 	actionPlanHandlers.Register(mux)
 
+	// Development Modules repo and usecase (needed by both architecture and devmodule handlers)
+	devModuleRepo := devmodulepg.NewRepo(sqlDB)
+	devModuleUsecase := devmoduleuc.NewDevModuleUsecase(devModuleRepo)
+
 	// Architecture handlers
 	architectureRepo := architecturepg.NewRepo(sqlDB)
 	architectureUsecase := architectureuc.NewArchitectureUsecase(architectureRepo)
@@ -92,8 +103,20 @@ func main() {
 		HTTPClient:        httpClient,
 		ActionPlanUsecase: actionPlanUsecase,
 		IdeaUsecase:       get,
+		DevModuleUsecase:  &devModuleAdapter{uc: devModuleUsecase},
 	}
 	architectureHandlers.Register(mux)
+
+	// Development Modules & Global Chat handlers
+	devModuleHandlers := &devmodulehttp.Handlers{
+		Usecase:             devModuleUsecase,
+		HTTPClient:          httpClient,
+		IdeaUsecase:         get,
+		IdeaUpdateUsecase:   update,
+		ActionPlanUsecase:   actionPlanUsecase,
+		ArchitectureUsecase: architectureUsecase,
+	}
+	devModuleHandlers.Register(mux)
 
 	// Auth setup
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -204,4 +227,49 @@ func security(next http.Handler) http.Handler {
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// devModuleAdapter adapts the devmodule usecase to the interface expected by architecture handlers
+type devModuleAdapter struct {
+	uc *devmoduleuc.DevModuleUsecase
+}
+
+func (a *devModuleAdapter) CreateModules(ctx context.Context, modules []architecturehttp.DevModule) error {
+	domainModules := make([]devmoduledomain.DevelopmentModule, len(modules))
+	for i, m := range modules {
+		domainModules[i] = devmoduledomain.DevelopmentModule{
+			ID:               m.ID,
+			ArchitectureID:   m.ArchitectureID,
+			Name:             m.Name,
+			Description:      m.Description,
+			Functionality:    m.Functionality,
+			Dependencies:     m.Dependencies,
+			TechnicalDetails: m.TechnicalDetails,
+			Priority:         m.Priority,
+			Status:           m.Status,
+		}
+	}
+	return a.uc.CreateModules(ctx, domainModules)
+}
+
+func (a *devModuleAdapter) GetModulesByArchitectureID(ctx context.Context, architectureID uuid.UUID) ([]architecturehttp.DevModule, error) {
+	domainModules, err := a.uc.GetModulesByArchitectureID(ctx, architectureID)
+	if err != nil {
+		return nil, err
+	}
+	modules := make([]architecturehttp.DevModule, len(domainModules))
+	for i, m := range domainModules {
+		modules[i] = architecturehttp.DevModule{
+			ID:               m.ID,
+			ArchitectureID:   m.ArchitectureID,
+			Name:             m.Name,
+			Description:      m.Description,
+			Functionality:    m.Functionality,
+			Dependencies:     m.Dependencies,
+			TechnicalDetails: m.TechnicalDetails,
+			Priority:         m.Priority,
+			Status:           m.Status,
+		}
+	}
+	return modules, nil
 }

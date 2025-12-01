@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import ActionPlanCardsEditable from "@/components/ActionPlanCardsEditable";
 import ModuleStepper from "@/components/modules/ModuleStepper";
+import GlobalSidePanel from "@/components/GlobalSidePanel";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -281,6 +282,12 @@ export default function ActionPlanPage({ params }: { params: Params }) {
           </Button>
         </div>
       )}
+
+      {/* Global Side Panel */}
+      <GlobalSidePanel
+        ideaId={plan.idea_id}
+        onModulesChange={loadPlan}
+      />
     </div>
   );
 }
