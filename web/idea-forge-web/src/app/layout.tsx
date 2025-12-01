@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConditionalLayout } from "@/components/conditional-layout";
 import { Toaster } from "@/components/ui/sonner";
+import { PropagationProvider } from "@/contexts/PropagationContext";
 
 export const metadata: Metadata = {
   title: "Idea Forge",
@@ -23,8 +24,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConditionalLayout>{children}</ConditionalLayout>
-          <Toaster />
+          <PropagationProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+            <Toaster />
+          </PropagationProvider>
         </ThemeProvider>
       </body>
     </html>

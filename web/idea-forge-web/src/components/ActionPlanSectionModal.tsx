@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, propagateToIdeation, updateActionPlan } from "@/lib/api";
+import { usePropagation, MODULE_IDS } from "@/contexts/PropagationContext";
 
 type Message = {
   role: "user" | "assistant";
@@ -42,6 +43,7 @@ type ActionPlanSectionModalProps = {
     business_logic_flow: string;
   };
   onSave: (newValue: string) => void;
+  onPropagation?: () => void;
   isCompleted?: boolean;
 };
 
@@ -56,12 +58,15 @@ export default function ActionPlanSectionModal({
   ideaContext,
   planContext,
   onSave,
+  onPropagation,
   isCompleted = false,
 }: ActionPlanSectionModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [updatedValue, setUpdatedValue] = useState(currentValue);
+
+  const { addModuleUpdate, addHighlight, incrementGeneration } = usePropagation();
 
   const handleSendMessage = async () => {
     if (!userInput.trim() || loading) return;
@@ -95,6 +100,72 @@ export default function ActionPlanSectionModal({
       // Actualizar el valor de la sección
       if (response.data.updatedSection) {
         setUpdatedValue(response.data.updatedSection);
+        // Actualizar el componente padre inmediatamente
+        onSave(response.data.updatedSection);
+      }
+
+      // Agregar resaltado para el texto nuevo en esta sección
+      if (response.data.addedText && response.data.addedText.length > 0) {
+        incrementGeneration();
+        addHighlight("action_plan", sectionKey, response.data.addedText);
+      }
+
+      // Procesar propagaciones
+      const propagation = response.data.propagation;
+      if (propagation) {
+        let propagatedModules: string[] = [];
+
+        // Propagar a otras secciones del plan de acción
+        if (propagation.action_plan) {
+          for (const [section, data] of Object.entries(propagation.action_plan)) {
+            if (section === sectionKey) continue; // No propagar a la misma sección
+            const sectionData = data as { content: string | null; addedText: string[] };
+            if (sectionData.content) {
+              // Actualizar la sección
+              await updateActionPlan(planId, { [section]: sectionData.content });
+
+              // Agregar highlights
+              if (sectionData.addedText && sectionData.addedText.length > 0) {
+                addHighlight("action_plan", section, sectionData.addedText);
+              }
+            }
+          }
+        }
+
+        // Propagar a ideación
+        if (propagation.ideation && ideaId) {
+          const ideaUpdates: Record<string, string> = {};
+
+          for (const [section, data] of Object.entries(propagation.ideation)) {
+            const sectionData = data as { content: string | null; addedText: string[] };
+            if (sectionData.content) {
+              ideaUpdates[section] = sectionData.content;
+
+              // Agregar highlights
+              if (sectionData.addedText && sectionData.addedText.length > 0) {
+                addHighlight("ideation", section, sectionData.addedText);
+              }
+            }
+          }
+
+          if (Object.keys(ideaUpdates).length > 0) {
+            await propagateToIdeation(ideaId, {
+              ...ideaUpdates,
+              source: "action_plan",
+            } as any);
+            addModuleUpdate(MODULE_IDS.ideation);
+            propagatedModules.push("Ideación");
+          }
+        }
+
+        // Mostrar notificación de propagación
+        if (propagatedModules.length > 0) {
+          toast.success(
+            `Cambios propagados a: ${propagatedModules.join(", ")}`,
+            { duration: 5000 }
+          );
+          onPropagation?.();
+        }
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -151,9 +222,9 @@ export default function ActionPlanSectionModal({
           <div className="flex flex-col space-y-2 h-full overflow-hidden">
             <p className="text-sm font-medium flex-shrink-0">Contenido actual:</p>
             <ScrollArea className="flex-1 rounded-lg border bg-muted/50 p-4">
-              <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
+              <p className="text-sm text-foreground whitespace-pre-wrap">
                 {updatedValue || "Sin contenido. Usa el chat para generar."}
-              </pre>
+              </p>
             </ScrollArea>
           </div>
 
@@ -239,11 +310,11 @@ export default function ActionPlanSectionModal({
         </div>
 
         <DialogFooter>
+          <p className="text-xs text-muted-foreground mr-auto">
+            Los cambios se guardan automáticamente
+          </p>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave}>
-            Aplicar Cambios
+            Cerrar
           </Button>
         </DialogFooter>
       </DialogContent>

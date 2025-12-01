@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Lightbulb, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { usePropagation } from "@/contexts/PropagationContext";
 
 type Params = Promise<{ id: string }>;
 
@@ -48,6 +49,8 @@ export default function IdeationPage({ params }: { params: Params }) {
   const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [proceeding, setProceeding] = useState(false);
+
+  const { state, clearModuleUpdate } = usePropagation();
 
   const loadIdea = async () => {
     try {
@@ -126,6 +129,8 @@ export default function IdeationPage({ params }: { params: Params }) {
         currentModule={1}
         ideaCompleted={idea.Completed}
         actionPlanCompleted={actionPlan?.completed}
+        modulesWithUpdates={state.modulesWithUpdates}
+        onModuleVisited={clearModuleUpdate}
       />
 
       {/* Layout con Cards Editables - sin chat lateral */}

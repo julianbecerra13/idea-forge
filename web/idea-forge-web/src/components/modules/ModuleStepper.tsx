@@ -22,6 +22,8 @@ type ModuleStepperProps = {
   ideaCompleted: boolean;
   actionPlanCompleted?: boolean;
   architectureCompleted?: boolean;
+  modulesWithUpdates?: number[]; // IDs de módulos con cambios propagados (mostrar punto rojo)
+  onModuleVisited?: (moduleId: number) => void; // Callback cuando el usuario visita un módulo
 };
 
 export default function ModuleStepper({
@@ -32,6 +34,8 @@ export default function ModuleStepper({
   ideaCompleted,
   actionPlanCompleted = false,
   architectureCompleted = false,
+  modulesWithUpdates = [],
+  onModuleVisited,
 }: ModuleStepperProps) {
   const router = useRouter();
 
@@ -71,6 +75,8 @@ export default function ModuleStepper({
     if (!targetModule || !targetModule.available || targetModule.path === "#") {
       return;
     }
+    // Notificar que el usuario visitó este módulo (para limpiar punto rojo)
+    onModuleVisited?.(moduleId);
     router.push(targetModule.path);
   };
 
@@ -105,6 +111,7 @@ export default function ModuleStepper({
           const Icon = module.icon;
           const isActive = module.id === currentModule;
           const isCurrent = module.id === currentModule;
+          const hasUpdate = modulesWithUpdates.includes(module.id);
 
           return (
             <div key={module.id} className="flex items-center flex-1">
@@ -120,20 +127,29 @@ export default function ModuleStepper({
                   !module.available && "opacity-40"
                 )}
               >
-                {/* Icon/Check */}
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full transition-colors shrink-0",
-                    isActive && "bg-primary text-primary-foreground",
-                    module.completed && !isActive && "bg-green-600 text-white",
-                    !isActive && !module.completed && module.available && "bg-muted",
-                    !module.available && "bg-muted/50"
-                  )}
-                >
-                  {module.completed ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Icon className="h-4 w-4" />
+                {/* Icon/Check con punto rojo de notificación */}
+                <div className="relative">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full transition-colors shrink-0",
+                      isActive && "bg-primary text-primary-foreground",
+                      module.completed && !isActive && "bg-green-600 text-white",
+                      !isActive && !module.completed && module.available && "bg-muted",
+                      !module.available && "bg-muted/50"
+                    )}
+                  >
+                    {module.completed ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                  </div>
+                  {/* Punto rojo de notificación */}
+                  {hasUpdate && !isActive && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
                   )}
                 </div>
 
@@ -148,6 +164,9 @@ export default function ModuleStepper({
                     )}
                   >
                     {module.name}
+                    {hasUpdate && !isActive && (
+                      <span className="ml-1 text-xs text-red-500">(actualizado)</span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {module.completed

@@ -481,7 +481,7 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call Genkit for section edit
-	reply, updatedSection, err := h.callGenkitEditSection(r.Context(), arch, in.Section, in.Message, in.IdeaContext, in.PlanContext, in.ArchitectureContext)
+	genkitResult, err := h.callGenkitEditSection(r.Context(), arch, in.Section, in.Message, in.IdeaContext, in.PlanContext, in.ArchitectureContext)
 	if err != nil {
 		log.Printf("error calling genkit edit section: %v", err)
 		http.Error(w, "error calling agent", http.StatusBadGateway)
@@ -489,22 +489,22 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the architecture with the new section value if provided
-	if updatedSection != "" {
+	if genkitResult.UpdatedSection != "" {
 		switch in.Section {
 		case "user_stories":
-			arch.UserStories = updatedSection
+			arch.UserStories = genkitResult.UpdatedSection
 		case "database_type":
-			arch.DatabaseType = updatedSection
+			arch.DatabaseType = genkitResult.UpdatedSection
 		case "database_schema":
-			arch.DatabaseSchema = updatedSection
+			arch.DatabaseSchema = genkitResult.UpdatedSection
 		case "entities_relationships":
-			arch.EntitiesRelationships = updatedSection
+			arch.EntitiesRelationships = genkitResult.UpdatedSection
 		case "tech_stack":
-			arch.TechStack = updatedSection
+			arch.TechStack = genkitResult.UpdatedSection
 		case "architecture_pattern":
-			arch.ArchitecturePattern = updatedSection
+			arch.ArchitecturePattern = genkitResult.UpdatedSection
 		case "system_architecture":
-			arch.SystemArchitecture = updatedSection
+			arch.SystemArchitecture = genkitResult.UpdatedSection
 		}
 		if err := h.Usecase.UpdateArchitecture(r.Context(), arch); err != nil {
 			log.Printf("error updating architecture after edit section: %v", err)
@@ -512,12 +512,21 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"reply":          reply,
-		"updatedSection": updatedSection,
+		"reply":          genkitResult.Reply,
+		"updatedSection": genkitResult.UpdatedSection,
+		"addedText":      genkitResult.AddedText,
+		"propagation":    genkitResult.Propagation,
 	}, http.StatusOK)
 }
 
-func (h *Handlers) callGenkitEditSection(ctx context.Context, arch *domain.Architecture, section, message string, ideaContext, planContext, architectureContext interface{}) (string, string, error) {
+type GenkitEditSectionResult struct {
+	Reply          string      `json:"reply"`
+	UpdatedSection string      `json:"updatedSection"`
+	AddedText      []string    `json:"addedText"`
+	Propagation    interface{} `json:"propagation"`
+}
+
+func (h *Handlers) callGenkitEditSection(ctx context.Context, arch *domain.Architecture, section, message string, ideaContext, planContext, architectureContext interface{}) (*GenkitEditSectionResult, error) {
 	genkitURL := os.Getenv("GENKIT_BASE_URL")
 	if genkitURL == "" {
 		genkitURL = "http://localhost:3001"
@@ -554,12 +563,12 @@ func (h *Handlers) callGenkitEditSection(ctx context.Context, arch *domain.Archi
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, genkitURL+"/architecture/edit-section", bytes.NewReader(jsonData))
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -570,23 +579,20 @@ func (h *Handlers) callGenkitEditSection(ctx context.Context, arch *domain.Archi
 
 	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("genkit returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("genkit returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
-		Reply          string `json:"reply"`
-		UpdatedSection string `json:"updated_section"`
-	}
+	var result GenkitEditSectionResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return result.Reply, result.UpdatedSection, nil
+	return &result, nil
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, status int) {

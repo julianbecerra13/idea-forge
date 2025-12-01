@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Users,
   Database,
@@ -15,10 +14,14 @@ import {
   Server,
   CheckCircle,
   Edit2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import ArchitectureSectionModal from "@/components/ArchitectureSectionModal";
+import HighlightedText from "@/components/HighlightedText";
 import { toast } from "sonner";
 import { updateArchitecture } from "@/lib/api";
+import { usePropagation } from "@/contexts/PropagationContext";
 
 type Architecture = {
   id: string;
@@ -88,11 +91,15 @@ const sectionConfig: Record<
 
 export default function ArchitectureCardsEditable({
   architecture: initialArchitecture,
+  ideaId,
+  actionPlanId,
   ideaContext,
   planContext,
   onUpdate,
 }: {
   architecture: Architecture;
+  ideaId?: string;
+  actionPlanId?: string;
   ideaContext?: {
     title: string;
     objective: string;
@@ -108,7 +115,22 @@ export default function ArchitectureCardsEditable({
 }) {
   const [architecture, setArchitecture] = useState(initialArchitecture);
   const [editingSection, setEditingSection] = useState<SectionKey | null>(null);
+  const [expandedSection, setExpandedSection] = useState<SectionKey | null>(null);
   const [saving, setSaving] = useState(false);
+  const [viewedSections, setViewedSections] = useState<Set<SectionKey>>(new Set());
+
+  const { state } = usePropagation();
+
+  // Check if a section has unviewed highlights
+  const sectionHasUpdate = (sectionKey: SectionKey): boolean => {
+    const highlights = state.highlights.architecture[sectionKey];
+    return highlights && highlights.length > 0 && !viewedSections.has(sectionKey);
+  };
+
+  // Mark section as viewed when clicking on the card
+  const markSectionAsViewed = (sectionKey: SectionKey) => {
+    setViewedSections(prev => new Set(prev).add(sectionKey));
+  };
 
   const handleSave = async (section: SectionKey, newValue: string) => {
     setSaving(true);
@@ -152,43 +174,79 @@ export default function ArchitectureCardsEditable({
     "system_architecture",
   ];
 
+  const handleCardClick = (sectionKey: SectionKey) => {
+    setExpandedSection(expandedSection === sectionKey ? null : sectionKey);
+    markSectionAsViewed(sectionKey);
+  };
+
+  const handleEditClick = (sectionKey: SectionKey, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSection(sectionKey);
+  };
+
   const renderCard = (sectionKey: SectionKey) => {
     const config = sectionConfig[sectionKey];
     const value = getValue(sectionKey);
+    const isExpanded = expandedSection === sectionKey;
+    const hasUpdate = sectionHasUpdate(sectionKey);
 
     return (
       <Card
         key={sectionKey}
-        className="transition-all hover:shadow-md cursor-pointer group flex flex-col min-h-[300px]"
-        onClick={() => setEditingSection(sectionKey)}
+        className="transition-all hover:shadow-md cursor-pointer group flex flex-col"
+        onClick={() => handleCardClick(sectionKey)}
       >
-        <CardHeader className="pb-2 flex-shrink-0">
+        <CardHeader className="pb-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              {config.icon}
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <div className="relative">
+                {config.icon}
+                {hasUpdate && (
+                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                  </span>
+                )}
+              </div>
               {config.title}
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingSection(sectionKey);
-              }}
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleEditClick(sectionKey, e)}
+                title="Editar con IA"
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <span className="text-muted-foreground">
+                {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">{config.description}</p>
+          <p className="text-sm text-muted-foreground">{config.description}</p>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 pr-4">
-            <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-              {value || "Click para agregar contenido..."}
-            </pre>
-          </ScrollArea>
-          <p className="mt-2 text-xs text-primary font-medium flex-shrink-0">Click para editar con IA</p>
+        <CardContent className="flex-1 flex flex-col">
+          <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-none' : 'max-h-[150px]'}`}>
+            <div className="text-base text-foreground whitespace-pre-wrap leading-relaxed">
+              {value ? (
+                <HighlightedText
+                  text={value}
+                  module="architecture"
+                  section={sectionKey}
+                />
+              ) : (
+                "Sin contenido. Haz click en el lápiz para agregar."
+              )}
+            </div>
+          </div>
+          {!isExpanded && value && value.length > 200 && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Click para ver más...
+            </p>
+          )}
+          <p className="mt-4 text-xs text-primary font-medium flex-shrink-0">Usa el lápiz para editar con IA</p>
         </CardContent>
       </Card>
     );
@@ -205,13 +263,9 @@ export default function ArchitectureCardsEditable({
           </div>
         )}
 
-        {/* Top Row: 3 cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Cards en columna */}
+        <div className="flex flex-col gap-6">
           {topSections.map(renderCard)}
-        </div>
-
-        {/* Bottom Row: 4 cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {bottomSections.map(renderCard)}
         </div>
       </div>
@@ -225,6 +279,8 @@ export default function ArchitectureCardsEditable({
           sectionTitle={sectionConfig[editingSection].title}
           currentValue={getValue(editingSection)}
           architectureId={architecture.id}
+          ideaId={ideaId}
+          actionPlanId={actionPlanId}
           ideaContext={ideaContext}
           planContext={planContext}
           architectureContext={{
@@ -237,6 +293,7 @@ export default function ArchitectureCardsEditable({
             system_architecture: architecture.system_architecture,
           }}
           onSave={(newValue) => handleSave(editingSection, newValue)}
+          onPropagation={onUpdate}
           isCompleted={architecture.completed}
         />
       )}

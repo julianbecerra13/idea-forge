@@ -45,6 +45,10 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			h.editSection(w, r)
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "/propagate") {
+			h.propagateChanges(w, r)
+			return
+		}
 		// GET, PUT o DELETE para una idea específica
 		if r.Method == http.MethodPut {
 			h.updateIdea(w, r)
@@ -558,4 +562,91 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, out, http.StatusOK)
+}
+
+// propagateChanges permite actualizar campos de la idea desde propagación automática (bypass bloqueo)
+func (h *Handlers) propagateChanges(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	// Extract idea ID from path: /ideation/ideas/{id}/propagate
+	path := strings.TrimPrefix(r.URL.Path, "/ideation/ideas/")
+	idStr := strings.TrimSuffix(path, "/propagate")
+
+	ideaID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "invalid idea id", http.StatusBadRequest)
+		return
+	}
+
+	var in struct {
+		Title     *string `json:"title"`
+		Objective *string `json:"objective"`
+		Problem   *string `json:"problem"`
+		Scope     *string `json:"scope"`
+		Source    string  `json:"source"` // "action_plan", "architecture", o "system"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	// Cargar idea actual
+	idea, err := h.Get.Execute(r.Context(), ideaID)
+	if err != nil {
+		http.Error(w, "idea not found", http.StatusNotFound)
+		return
+	}
+
+	// Actualizar solo los campos que vienen en la propagación
+	updated := false
+	title := idea.Title
+	objective := idea.Objective
+	problem := idea.Problem
+	scope := idea.Scope
+
+	if in.Title != nil && *in.Title != "" {
+		title = *in.Title
+		updated = true
+	}
+	if in.Objective != nil && *in.Objective != "" {
+		objective = *in.Objective
+		updated = true
+	}
+	if in.Problem != nil && *in.Problem != "" {
+		problem = *in.Problem
+		updated = true
+	}
+	if in.Scope != nil && *in.Scope != "" {
+		scope = *in.Scope
+		updated = true
+	}
+
+	if updated {
+		_, err := h.Update.Execute(
+			r.Context(),
+			ideaID,
+			title,
+			objective,
+			problem,
+			scope,
+			idea.ValidateCompetition,
+			idea.ValidateMonetization,
+			nil, // No cambiar completed
+		)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		log.Printf("[propagate] Idea %s updated from %s", ideaID, in.Source)
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"success": true,
+		"updated": updated,
+	}, http.StatusOK)
 }

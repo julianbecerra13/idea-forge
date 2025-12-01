@@ -180,3 +180,19 @@ export const resetPassword = (payload: {
 }) => api.post(`/auth/reset-password`, payload).then((r) => r.data);
 
 export const getMe = () => api.get(`/auth/me`).then((r) => r.data);
+
+// Propagation API - para propagar cambios entre módulos (bypass bloqueo)
+export const propagateToActionPlan = (id: string, payload: {
+  functional_requirements?: string;
+  non_functional_requirements?: string;
+  business_logic_flow?: string;
+  source: string;
+}) => api.post(`/action-plan/${id}/propagate`, payload).then((r) => r.data);
+
+export const propagateToIdeation = (id: string, payload: {
+  title?: string;
+  objective?: string;
+  problem?: string;
+  scope?: string;
+  source: string;
+}) => api.post(`/ideation/ideas/${id}/propagate`, payload).then((r) => r.data);

@@ -49,6 +49,10 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			h.editSection(w, r)
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "/propagate") {
+			h.propagateChanges(w, r)
+			return
+		}
 		if r.Method == http.MethodGet {
 			h.getActionPlan(w, r)
 			return
@@ -516,7 +520,7 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call Genkit for section edit
-	reply, updatedSection, err := h.callGenkitEditSection(r.Context(), plan, in.Section, in.Message, in.IdeaContext, in.PlanContext)
+	genkitResult, err := h.callGenkitEditSection(r.Context(), plan, in.Section, in.Message, in.IdeaContext, in.PlanContext)
 	if err != nil {
 		log.Printf("error calling genkit edit section: %v", err)
 		http.Error(w, "error calling agent", http.StatusBadGateway)
@@ -524,14 +528,14 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the plan with the new section value if provided
-	if updatedSection != "" {
+	if genkitResult.UpdatedSection != "" {
 		switch in.Section {
 		case "functional_requirements":
-			plan.FunctionalRequirements = updatedSection
+			plan.FunctionalRequirements = genkitResult.UpdatedSection
 		case "non_functional_requirements":
-			plan.NonFunctionalRequirements = updatedSection
+			plan.NonFunctionalRequirements = genkitResult.UpdatedSection
 		case "business_logic_flow":
-			plan.BusinessLogicFlow = updatedSection
+			plan.BusinessLogicFlow = genkitResult.UpdatedSection
 		}
 		if err := h.Usecase.UpdateActionPlan(r.Context(), plan); err != nil {
 			log.Printf("error updating plan after edit section: %v", err)
@@ -539,12 +543,21 @@ func (h *Handlers) editSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"reply":          reply,
-		"updatedSection": updatedSection,
+		"reply":          genkitResult.Reply,
+		"updatedSection": genkitResult.UpdatedSection,
+		"addedText":      genkitResult.AddedText,
+		"propagation":    genkitResult.Propagation,
 	}, http.StatusOK)
 }
 
-func (h *Handlers) callGenkitEditSection(ctx context.Context, plan *domain.ActionPlan, section, message string, ideaContext interface{}, planContext interface{}) (string, string, error) {
+type ActionPlanGenkitEditResult struct {
+	Reply          string      `json:"reply"`
+	UpdatedSection string      `json:"updatedSection"`
+	AddedText      []string    `json:"addedText"`
+	Propagation    interface{} `json:"propagation"`
+}
+
+func (h *Handlers) callGenkitEditSection(ctx context.Context, plan *domain.ActionPlan, section, message string, ideaContext interface{}, planContext interface{}) (*ActionPlanGenkitEditResult, error) {
 	genkitURL := os.Getenv("GENKIT_BASE_URL")
 	if genkitURL == "" {
 		genkitURL = "http://localhost:3001"
@@ -572,12 +585,12 @@ func (h *Handlers) callGenkitEditSection(ctx context.Context, plan *domain.Actio
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, genkitURL+"/action-plan/edit-section", bytes.NewReader(jsonData))
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -588,23 +601,88 @@ func (h *Handlers) callGenkitEditSection(ctx context.Context, plan *domain.Actio
 
 	resp, err := h.HTTPClient.Do(req)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("genkit returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("genkit returned status %d", resp.StatusCode)
 	}
 
-	var result struct {
-		Reply          string `json:"reply"`
-		UpdatedSection string `json:"updated_section"`
-	}
+	var result ActionPlanGenkitEditResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return result.Reply, result.UpdatedSection, nil
+	return &result, nil
+}
+
+// propagateChanges permite actualizar secciones del plan desde propagación automática (bypass bloqueo)
+func (h *Handlers) propagateChanges(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	// Extract plan ID from path: /action-plan/{id}/propagate
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	planID, err := uuid.Parse(pathParts[1])
+	if err != nil {
+		http.Error(w, "invalid plan id", http.StatusBadRequest)
+		return
+	}
+
+	var in struct {
+		FunctionalRequirements    *string `json:"functional_requirements"`
+		NonFunctionalRequirements *string `json:"non_functional_requirements"`
+		BusinessLogicFlow         *string `json:"business_logic_flow"`
+		Source                    string  `json:"source"` // "architecture" o "system"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	plan, err := h.Usecase.GetActionPlan(r.Context(), planID)
+	if err != nil {
+		http.Error(w, "action plan not found", http.StatusNotFound)
+		return
+	}
+
+	// Actualizar solo los campos que vienen en la propagación
+	updated := false
+	if in.FunctionalRequirements != nil && *in.FunctionalRequirements != "" {
+		plan.FunctionalRequirements = *in.FunctionalRequirements
+		updated = true
+	}
+	if in.NonFunctionalRequirements != nil && *in.NonFunctionalRequirements != "" {
+		plan.NonFunctionalRequirements = *in.NonFunctionalRequirements
+		updated = true
+	}
+	if in.BusinessLogicFlow != nil && *in.BusinessLogicFlow != "" {
+		plan.BusinessLogicFlow = *in.BusinessLogicFlow
+		updated = true
+	}
+
+	if updated {
+		if err := h.Usecase.UpdateActionPlan(r.Context(), plan); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		log.Printf("[propagate] Action plan %s updated from %s", planID, in.Source)
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"success": true,
+		"updated": updated,
+	}, http.StatusOK)
 }
 
 func writeJSON(w http.ResponseWriter, data interface{}, status int) {

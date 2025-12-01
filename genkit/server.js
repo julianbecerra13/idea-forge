@@ -357,8 +357,8 @@ RESPONDE EN FORMATO JSON:
 }
 
 EJEMPLOS DE BUENAS RESPUESTAS:
-- "Perfecto, con base en lo que me dices, un requerimiento funcional sería: 'RF-001: El usuario debe poder registrarse con email/contraseña, validación por código de 6 dígitos enviado por email'. ¿Te parece que agregue esto al plan?"
-- "Entiendo que esperan 10,000 usuarios concurrentes. Un requerimiento no funcional sería: 'RNF-001: El sistema debe soportar 10,000 usuarios concurrentes con tiempo de respuesta < 200ms en el percentil 95'. ¿Qué tecnologías tienes en mente para lograrlo?"
+- "Perfecto, con base en lo que me dices, un requerimiento funcional sería: 'El usuario debe poder registrarse con email/contraseña, validación por código de 6 dígitos enviado por email'. ¿Te parece que agregue esto al plan?"
+- "Entiendo que esperan 10,000 usuarios concurrentes. Un requerimiento no funcional sería: 'El sistema debe soportar 10,000 usuarios concurrentes con tiempo de respuesta < 200ms en el percentil 95'. ¿Qué tecnologías tienes en mente para lograrlo?"
 `.trim();
     }
 
@@ -388,7 +388,7 @@ EJEMPLOS DE BUENAS RESPUESTAS:
   }
 });
 
-// Endpoint para editar una sección específica del plan de acción
+// Endpoint para editar una sección específica del plan de acción CON PROPAGACIÓN
 app.post("/action-plan/edit-section", checkAuth, async (req, res) => {
   try {
     const { section, message, idea_context, plan_context } = req.body || {};
@@ -423,7 +423,7 @@ PLAN DE ACCIÓN ACTUAL:
     }
 
     const prompt = `
-Eres un Analista de Sistemas Senior especializado en levantar requerimientos.
+Eres un Analista de Sistemas Senior especializado en levantar requerimientos y coherencia de proyectos.
 ${ideaInfo}
 ${planInfo}
 
@@ -431,25 +431,66 @@ El usuario quiere modificar la sección "${sectionNames[section] || section}".
 
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
-INSTRUCCIONES:
-1. Analiza lo que el usuario quiere cambiar o agregar
-2. Genera una versión mejorada/actualizada de la sección
-3. Usa formato numerado (RF-XXX para funcionales, RNF-XXX para no funcionales)
-4. Responde de forma conversacional explicando los cambios
-5. Mantén coherencia con el resto del plan
+INSTRUCCIONES CRÍTICAS:
+1. Analiza el cambio solicitado
+2. Genera la sección actualizada con viñetas (- )
+3. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
+   - OTRAS secciones de Plan de Acción (ej: si agregas requerimiento funcional, ¿necesita flujo de negocio?)
+   - IDEACIÓN (ej: si agregas funcionalidad completamente nueva, ¿debe agregarse al alcance/objetivo?)
+
+4. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
 
 RESPONDE EN FORMATO JSON:
 {
-  "reply": "Tu respuesta conversacional explicando los cambios realizados",
-  "updatedSection": "El nuevo contenido completo para la sección ${sectionNames[section] || section}"
+  "reply": "Explicación conversacional de todos los cambios realizados y propagados",
+  "updatedSection": "Contenido COMPLETO actualizado de ${sectionNames[section] || section}",
+  "addedText": ["texto nuevo 1 que se agregó", "texto nuevo 2"],
+  "propagation": {
+    "action_plan": {
+      "functional_requirements": {
+        "content": null,
+        "addedText": []
+      },
+      "non_functional_requirements": {
+        "content": null,
+        "addedText": []
+      },
+      "business_logic_flow": {
+        "content": null,
+        "addedText": []
+      }
+    },
+    "ideation": {
+      "scope": {
+        "content": "Contenido completo actualizado (o null si no aplica)",
+        "addedText": ["texto nuevo agregado"]
+      },
+      "objective": {
+        "content": null,
+        "addedText": []
+      },
+      "problem": {
+        "content": null,
+        "addedText": []
+      }
+    }
+  }
 }
+
+REGLAS DE PROPAGACIÓN:
+- Solo propaga si es REALMENTE necesario para mantener coherencia
+- Si agregas un requerimiento funcional de algo NUEVO que no está en el alcance de la idea, actualiza la idea
+- El "content" debe ser el contenido COMPLETO de esa sección (no solo lo nuevo)
+- "addedText" son los fragmentos exactos que se agregaron (para resaltarlos en verde)
+- Usa null en "content" si esa sección NO necesita cambios
 `.trim();
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        maxOutputTokens: 4000
       }
     });
 
@@ -458,7 +499,12 @@ RESPONDE EN FORMATO JSON:
 
     const parsed = safeParseJSON(text, {
       reply: "Lo siento, hubo un error al procesar tu solicitud.",
-      updatedSection: plan_context?.[section] || ""
+      updatedSection: plan_context?.[section] || "",
+      addedText: [],
+      propagation: {
+        action_plan: {},
+        ideation: {}
+      }
     });
 
     res.json(parsed);
@@ -493,13 +539,13 @@ IDEA:
 
 Tu tarea es generar un Plan de Acción técnico inicial con 3 secciones:
 
-1. **Requerimientos Funcionales**: Lista numerada (RF-001, RF-002...) de casos de uso principales que el sistema debe cumplir
-2. **Requerimientos No Funcionales**: Lista numerada (RNF-001, RNF-002...) con performance, seguridad, escalabilidad, disponibilidad
+1. **Requerimientos Funcionales**: Lista con viñetas de casos de uso principales que el sistema debe cumplir
+2. **Requerimientos No Funcionales**: Lista con viñetas de requisitos de performance, seguridad, escalabilidad, disponibilidad
 3. **Flujo de Lógica de Negocio**: Descripción textual de los procesos principales paso a paso
 
 INSTRUCCIONES:
 - Sé específico y técnico
-- Usa el formato RF-XXX y RNF-XXX
+- Usa viñetas con guiones (- ) para cada requerimiento
 - Define al menos 5 requerimientos funcionales
 - Define al menos 4 requerimientos no funcionales
 - Describe 2-3 flujos de negocio principales
@@ -508,9 +554,9 @@ INSTRUCCIONES:
 
 RESPONDE EN FORMATO JSON:
 {
-  "functional_requirements": "RF-001: ...\nRF-002: ...\n...",
-  "non_functional_requirements": "RNF-001: ...\nRNF-002: ...\n...",
-  "business_logic_flow": "FLUJO 1:\n1. ...\n2. ...\n\nFLUJO 2:\n..."
+  "functional_requirements": "- El usuario puede registrarse...\n- El sistema permite...\n...",
+  "non_functional_requirements": "- El sistema debe responder en menos de 200ms\n- La aplicación debe soportar...\n...",
+  "business_logic_flow": "FLUJO 1: Registro de usuario\n1. ...\n2. ...\n\nFLUJO 2: ...\n..."
 }
 `.trim();
 
@@ -779,7 +825,7 @@ RESPONDE EN FORMATO JSON:
   }
 });
 
-// Endpoint para editar una sección específica de la arquitectura
+// Endpoint para editar una sección específica de la arquitectura CON PROPAGACIÓN
 app.post("/architecture/edit-section", checkAuth, async (req, res) => {
   try {
     const { section, message, idea_context, plan_context, architecture_context } = req.body || {};
@@ -802,14 +848,17 @@ app.post("/architecture/edit-section", checkAuth, async (req, res) => {
 IDEA ORIGINAL:
 - Título: "${sanitizeForPrompt(idea_context.title || "")}"
 - Objetivo: "${sanitizeForPrompt(idea_context.objective || "")}"
+- Problema: "${sanitizeForPrompt(idea_context.problem || "")}"
+- Alcance: "${sanitizeForPrompt(idea_context.scope || "")}"
 `;
     }
 
     if (plan_context) {
       context += `
-PLAN DE ACCIÓN:
+PLAN DE ACCIÓN ACTUAL:
 - Requerimientos Funcionales: ${sanitizeForPrompt(plan_context.functional_requirements || "No definidos")}
 - Requerimientos No Funcionales: ${sanitizeForPrompt(plan_context.non_functional_requirements || "No definidos")}
+- Flujo de Lógica de Negocio: ${sanitizeForPrompt(plan_context.business_logic_flow || "No definido")}
 `;
     }
 
@@ -818,38 +867,98 @@ PLAN DE ACCIÓN:
 ARQUITECTURA ACTUAL:
 - Historias de Usuario: ${sanitizeForPrompt(architecture_context.user_stories || "No definidas")}
 - Tipo BD: ${sanitizeForPrompt(architecture_context.database_type || "No definido")}
+- Esquema BD: ${sanitizeForPrompt(architecture_context.database_schema || "No definido")}
+- Entidades: ${sanitizeForPrompt(architecture_context.entities_relationships || "No definidas")}
 - Stack: ${sanitizeForPrompt(architecture_context.tech_stack || "No definido")}
 - Patrón: ${sanitizeForPrompt(architecture_context.architecture_pattern || "No definido")}
+- Arquitectura Sistema: ${sanitizeForPrompt(architecture_context.system_architecture || "No definida")}
 `;
     }
 
     const prompt = `
-Eres un Arquitecto de Software Senior experto en diseño de sistemas.
+Eres un Arquitecto de Software Senior experto en diseño de sistemas y coherencia de proyectos.
 ${context}
 
 El usuario quiere modificar la sección "${sectionNames[section] || section}".
 
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
-INSTRUCCIONES:
-1. Analiza lo que el usuario quiere cambiar o agregar
-2. Genera una versión mejorada/actualizada de la sección
-3. Sé específico y técnico, usa mejores prácticas
-4. Responde de forma conversacional explicando los cambios
-5. Mantén coherencia con el resto de la arquitectura
+INSTRUCCIONES CRÍTICAS:
+1. Analiza el cambio solicitado
+2. Genera la sección actualizada
+3. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
+   - OTRAS secciones de Arquitectura (ej: si agregas historia de usuario, ¿necesita cambios en BD, entidades, etc.?)
+   - PLAN DE ACCIÓN (ej: si agregas funcionalidad nueva, ¿falta el requerimiento funcional?)
+   - IDEACIÓN (ej: si es algo completamente nuevo, ¿debe agregarse al alcance?)
+
+4. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
 
 RESPONDE EN FORMATO JSON:
 {
-  "reply": "Tu respuesta conversacional explicando los cambios realizados",
-  "updatedSection": "El nuevo contenido completo para la sección ${sectionNames[section] || section}"
+  "reply": "Explicación conversacional de todos los cambios realizados y propagados",
+  "updatedSection": "Contenido COMPLETO actualizado de ${sectionNames[section] || section}",
+  "addedText": ["texto nuevo 1 que se agregó", "texto nuevo 2"],
+  "propagation": {
+    "architecture": {
+      "database_schema": {
+        "content": "Contenido completo actualizado (o null si no aplica)",
+        "addedText": ["texto nuevo agregado aquí"]
+      },
+      "entities_relationships": {
+        "content": null,
+        "addedText": []
+      },
+      "tech_stack": {
+        "content": null,
+        "addedText": []
+      },
+      "system_architecture": {
+        "content": null,
+        "addedText": []
+      }
+    },
+    "action_plan": {
+      "functional_requirements": {
+        "content": "Contenido completo actualizado (o null si no aplica)",
+        "addedText": ["texto nuevo agregado"]
+      },
+      "non_functional_requirements": {
+        "content": null,
+        "addedText": []
+      },
+      "business_logic_flow": {
+        "content": null,
+        "addedText": []
+      }
+    },
+    "ideation": {
+      "scope": {
+        "content": null,
+        "addedText": []
+      },
+      "objective": {
+        "content": null,
+        "addedText": []
+      }
+    }
+  }
 }
+
+REGLAS DE PROPAGACIÓN:
+- Solo propaga si es REALMENTE necesario para mantener coherencia
+- Si agregas historia de usuario de algo NUEVO, DEBE existir el requerimiento funcional correspondiente
+- Si agregas entidad/tabla nueva, actualiza schema Y entidades
+- El "content" debe ser el contenido COMPLETO de esa sección (no solo lo nuevo)
+- "addedText" son los fragmentos exactos que se agregaron (para resaltarlos en verde)
+- Usa null en "content" si esa sección NO necesita cambios
 `.trim();
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       generationConfig: {
         temperature: 0.7,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        maxOutputTokens: 8000
       }
     });
 
@@ -858,7 +967,13 @@ RESPONDE EN FORMATO JSON:
 
     const parsed = safeParseJSON(text, {
       reply: "Lo siento, hubo un error al procesar tu solicitud.",
-      updatedSection: architecture_context?.[section] || ""
+      updatedSection: architecture_context?.[section] || "",
+      addedText: [],
+      propagation: {
+        architecture: {},
+        action_plan: {},
+        ideation: {}
+      }
     });
 
     res.json(parsed);

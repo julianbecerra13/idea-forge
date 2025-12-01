@@ -7,6 +7,7 @@ import ModuleStepper from "@/components/modules/ModuleStepper";
 import LoadingState from "@/components/common/LoadingState";
 import EmptyState from "@/components/common/EmptyState";
 import { Code } from "lucide-react";
+import { usePropagation } from "@/contexts/PropagationContext";
 
 type Params = Promise<{ id: string }>;
 
@@ -65,6 +66,8 @@ export default function ArchitecturePage({ params }: { params: Params }) {
   const [ideaContext, setIdeaContext] = useState<IdeaContext | undefined>(undefined);
   const [planContext, setPlanContext] = useState<PlanContext | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+
+  const { state, clearModuleUpdate } = usePropagation();
 
   const loadArchitecture = async () => {
     try {
@@ -139,6 +142,8 @@ export default function ArchitecturePage({ params }: { params: Params }) {
           ideaCompleted={idea.Completed}
           actionPlanCompleted={actionPlan.completed}
           architectureCompleted={architecture.completed}
+          modulesWithUpdates={state.modulesWithUpdates}
+          onModuleVisited={clearModuleUpdate}
         />
       )}
 
@@ -163,6 +168,8 @@ export default function ArchitecturePage({ params }: { params: Params }) {
       {/* Cards Editables */}
       <ArchitectureCardsEditable
         architecture={architecture}
+        ideaId={idea?.ID}
+        actionPlanId={actionPlan?.id}
         ideaContext={ideaContext}
         planContext={planContext}
         onUpdate={loadArchitecture}

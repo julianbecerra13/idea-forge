@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileCode, Shield, GitBranch, CheckCircle, Edit2, Lock } from "lucide-react";
+import { FileCode, Shield, GitBranch, CheckCircle, Edit2, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import ActionPlanSectionModal from "@/components/ActionPlanSectionModal";
+import HighlightedText from "@/components/HighlightedText";
 import { toast } from "sonner";
 import { updateActionPlan } from "@/lib/api";
+import { usePropagation } from "@/contexts/PropagationContext";
 
 type ActionPlan = {
   id: string;
@@ -28,12 +29,12 @@ const sectionConfig: Record<SectionKey, { title: string; icon: React.ReactNode; 
   functional_requirements: {
     title: "Requerimientos Funcionales",
     icon: <FileCode className="h-5 w-5 text-blue-600" />,
-    description: "Define qué debe hacer el sistema (RF-XXX)",
+    description: "Define qué debe hacer el sistema",
   },
   non_functional_requirements: {
     title: "Requerimientos No Funcionales",
     icon: <Shield className="h-5 w-5 text-purple-600" />,
-    description: "Performance, seguridad, escalabilidad (RNF-XXX)",
+    description: "Performance, seguridad, escalabilidad",
   },
   business_logic_flow: {
     title: "Flujo de Lógica de Negocio",
@@ -60,7 +61,22 @@ export default function ActionPlanCardsEditable({
 }) {
   const [plan, setPlan] = useState(initialPlan);
   const [editingSection, setEditingSection] = useState<SectionKey | null>(null);
+  const [expandedSection, setExpandedSection] = useState<SectionKey | null>(null);
   const [saving, setSaving] = useState(false);
+  const [viewedSections, setViewedSections] = useState<Set<SectionKey>>(new Set());
+
+  const { state } = usePropagation();
+
+  // Check if a section has unviewed highlights
+  const sectionHasUpdate = (sectionKey: SectionKey): boolean => {
+    const highlights = state.highlights.action_plan[sectionKey];
+    return highlights && highlights.length > 0 && !viewedSections.has(sectionKey);
+  };
+
+  // Mark section as viewed when clicking on the card
+  const markSectionAsViewed = (sectionKey: SectionKey) => {
+    setViewedSections(prev => new Set(prev).add(sectionKey));
+  };
 
   const handleSave = async (section: SectionKey, newValue: string) => {
     setSaving(true);
@@ -91,6 +107,13 @@ export default function ActionPlanCardsEditable({
   };
 
   const handleCardClick = (sectionKey: SectionKey) => {
+    // Toggle expandir/colapsar
+    setExpandedSection(expandedSection === sectionKey ? null : sectionKey);
+    markSectionAsViewed(sectionKey);
+  };
+
+  const handleEditClick = (sectionKey: SectionKey, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isLocked) {
       toast.error("No puedes editar el Plan de Acción porque ya existe una Arquitectura basada en él.");
       return;
@@ -120,51 +143,79 @@ export default function ActionPlanCardsEditable({
           </div>
         )}
 
-        {/* Cards Grid */}
-        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+        {/* Cards en columna */}
+        <div className="flex flex-col gap-6">
           {(Object.keys(sectionConfig) as SectionKey[]).map((sectionKey) => {
             const config = sectionConfig[sectionKey];
             const value = getValue(sectionKey);
+            const isExpanded = expandedSection === sectionKey;
+            const hasUpdate = sectionHasUpdate(sectionKey);
 
             return (
               <Card
                 key={sectionKey}
-                className={`transition-all flex flex-col min-h-[400px] ${isLocked ? 'opacity-75 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'} group`}
+                className={`transition-all flex flex-col hover:shadow-md cursor-pointer group ${isLocked ? 'opacity-75' : ''}`}
                 onClick={() => handleCardClick(sectionKey)}
               >
                 <CardHeader className="pb-3 flex-shrink-0">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      {config.icon}
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <div className="relative">
+                        {config.icon}
+                        {hasUpdate && (
+                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                          </span>
+                        )}
+                      </div>
                       {config.title}
                     </CardTitle>
-                    {isLocked ? (
-                      <Lock className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCardClick(sectionKey);
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!isLocked && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => handleEditClick(sectionKey, e)}
+                          title="Editar con IA"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {isLocked ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">{config.description}</p>
+                  <p className="text-sm text-muted-foreground">{config.description}</p>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col overflow-hidden">
-                  <ScrollArea className="flex-1 pr-4">
-                    <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                      {value || "Click para agregar contenido..."}
-                    </pre>
-                  </ScrollArea>
+                <CardContent className="flex-1 flex flex-col">
+                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-none' : 'max-h-[150px]'}`}>
+                    <div className="text-base text-foreground whitespace-pre-wrap leading-relaxed">
+                      {value ? (
+                        <HighlightedText
+                          text={value}
+                          module="action_plan"
+                          section={sectionKey}
+                        />
+                      ) : (
+                        "Sin contenido. Haz click en el lápiz para agregar."
+                      )}
+                    </div>
+                  </div>
+                  {!isExpanded && value && value.length > 200 && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Click para ver más...
+                    </p>
+                  )}
                   {!isLocked && (
-                    <p className="mt-3 text-xs text-primary font-medium flex-shrink-0">
-                      Click para editar con IA
+                    <p className="mt-4 text-xs text-primary font-medium flex-shrink-0">
+                      Usa el lápiz para editar con IA
                     </p>
                   )}
                 </CardContent>
@@ -191,6 +242,7 @@ export default function ActionPlanCardsEditable({
             business_logic_flow: plan.business_logic_flow,
           }}
           onSave={(newValue) => handleSave(editingSection, newValue)}
+          onPropagation={onUpdate}
           isCompleted={plan.completed}
         />
       )}

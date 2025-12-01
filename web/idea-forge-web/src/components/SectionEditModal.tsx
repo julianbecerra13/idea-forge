@@ -85,6 +85,8 @@ export default function SectionEditModal({
       // Actualizar el valor de la sección
       if (response.data.updatedSection) {
         setUpdatedValue(response.data.updatedSection);
+        // Actualizar el componente padre inmediatamente
+        onSave(response.data.updatedSection);
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -218,10 +220,12 @@ export default function SectionEditModal({
         </div>
 
         <DialogFooter>
+          <p className="text-xs text-muted-foreground mr-auto">
+            Los cambios se guardan automáticamente
+          </p>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            Cerrar
           </Button>
-          <Button onClick={handleSave}>Aplicar Cambios</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

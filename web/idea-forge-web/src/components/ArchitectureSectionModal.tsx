@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, propagateToActionPlan, propagateToIdeation, updateArchitecture } from "@/lib/api";
+import { usePropagation, MODULE_IDS } from "@/contexts/PropagationContext";
 
 type Message = {
   role: "user" | "assistant";
@@ -38,6 +39,8 @@ type ArchitectureSectionModalProps = {
   sectionTitle: string;
   currentValue: string;
   architectureId: string;
+  ideaId?: string; // Para propagación a ideación
+  actionPlanId?: string; // Para propagación a plan de acción
   ideaContext?: {
     title: string;
     objective: string;
@@ -59,6 +62,7 @@ type ArchitectureSectionModalProps = {
     system_architecture: string;
   };
   onSave: (newValue: string) => void;
+  onPropagation?: () => void; // Callback para refrescar datos después de propagación
   isCompleted?: boolean;
 };
 
@@ -69,16 +73,21 @@ export default function ArchitectureSectionModal({
   sectionTitle,
   currentValue,
   architectureId,
+  ideaId,
+  actionPlanId,
   ideaContext,
   planContext,
   architectureContext,
   onSave,
+  onPropagation,
   isCompleted = false,
 }: ArchitectureSectionModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [updatedValue, setUpdatedValue] = useState(currentValue);
+
+  const { addModuleUpdate, addHighlight, incrementGeneration } = usePropagation();
 
   const handleSendMessage = async () => {
     if (!userInput.trim() || loading) return;
@@ -112,6 +121,97 @@ export default function ArchitectureSectionModal({
 
       if (response.data.updatedSection) {
         setUpdatedValue(response.data.updatedSection);
+        // Actualizar el componente padre inmediatamente
+        onSave(response.data.updatedSection);
+      }
+
+      // Agregar resaltado para el texto nuevo en esta sección
+      if (response.data.addedText && response.data.addedText.length > 0) {
+        incrementGeneration();
+        addHighlight("architecture", sectionKey, response.data.addedText);
+      }
+
+      // Procesar propagaciones
+      const propagation = response.data.propagation;
+      if (propagation) {
+        let propagatedModules: string[] = [];
+
+        // Propagar a otras secciones de arquitectura
+        if (propagation.architecture) {
+          for (const [section, data] of Object.entries(propagation.architecture)) {
+            const sectionData = data as { content: string | null; addedText: string[] };
+            if (sectionData.content) {
+              // Actualizar la sección de arquitectura
+              await updateArchitecture(architectureId, { [section]: sectionData.content });
+
+              // Agregar highlights
+              if (sectionData.addedText && sectionData.addedText.length > 0) {
+                addHighlight("architecture", section, sectionData.addedText);
+              }
+            }
+          }
+        }
+
+        // Propagar a plan de acción
+        if (propagation.action_plan && actionPlanId) {
+          const planUpdates: Record<string, string> = {};
+
+          for (const [section, data] of Object.entries(propagation.action_plan)) {
+            const sectionData = data as { content: string | null; addedText: string[] };
+            if (sectionData.content) {
+              planUpdates[section] = sectionData.content;
+
+              // Agregar highlights
+              if (sectionData.addedText && sectionData.addedText.length > 0) {
+                addHighlight("action_plan", section, sectionData.addedText);
+              }
+            }
+          }
+
+          if (Object.keys(planUpdates).length > 0) {
+            await propagateToActionPlan(actionPlanId, {
+              ...planUpdates,
+              source: "architecture",
+            } as any);
+            addModuleUpdate(MODULE_IDS.action_plan);
+            propagatedModules.push("Plan de Acción");
+          }
+        }
+
+        // Propagar a ideación
+        if (propagation.ideation && ideaId) {
+          const ideaUpdates: Record<string, string> = {};
+
+          for (const [section, data] of Object.entries(propagation.ideation)) {
+            const sectionData = data as { content: string | null; addedText: string[] };
+            if (sectionData.content) {
+              ideaUpdates[section] = sectionData.content;
+
+              // Agregar highlights
+              if (sectionData.addedText && sectionData.addedText.length > 0) {
+                addHighlight("ideation", section, sectionData.addedText);
+              }
+            }
+          }
+
+          if (Object.keys(ideaUpdates).length > 0) {
+            await propagateToIdeation(ideaId, {
+              ...ideaUpdates,
+              source: "architecture",
+            } as any);
+            addModuleUpdate(MODULE_IDS.ideation);
+            propagatedModules.push("Ideación");
+          }
+        }
+
+        // Mostrar notificación de propagación
+        if (propagatedModules.length > 0) {
+          toast.success(
+            `Cambios propagados a: ${propagatedModules.join(", ")}`,
+            { duration: 5000 }
+          );
+          onPropagation?.();
+        }
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -264,11 +364,11 @@ export default function ArchitectureSectionModal({
         </div>
 
         <DialogFooter>
+          <p className="text-xs text-muted-foreground mr-auto">
+            Los cambios se guardan automáticamente
+          </p>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave}>
-            Aplicar Cambios
+            Cerrar
           </Button>
         </DialogFooter>
       </DialogContent>

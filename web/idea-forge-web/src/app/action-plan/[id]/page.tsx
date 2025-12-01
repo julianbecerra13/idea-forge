@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { usePropagation } from "@/contexts/PropagationContext";
 
 type Params = Promise<{ id: string }>;
 
@@ -57,6 +58,8 @@ export default function ActionPlanPage({ params }: { params: Params }) {
   const [architectureId, setArchitectureId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [proceeding, setProceeding] = useState(false);
+
+  const { state, clearModuleUpdate } = usePropagation();
 
   const loadPlan = async () => {
     try {
@@ -152,6 +155,8 @@ export default function ActionPlanPage({ params }: { params: Params }) {
         currentModule={2}
         ideaCompleted={true}
         actionPlanCompleted={plan.completed}
+        modulesWithUpdates={state.modulesWithUpdates}
+        onModuleVisited={clearModuleUpdate}
       />
 
       {/* Header */}
