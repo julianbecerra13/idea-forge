@@ -108,15 +108,16 @@ IDEA INICIAL:
 - Alcance: "${sanitizedScope}"
 
 INSTRUCCIONES:
-1. Analiza la idea y detecta qué información falta o es vaga
-2. Saluda al usuario de forma amigable y menciona el título de su proyecto
-3. Haz 2-3 preguntas clave para entender mejor:
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Toda tu respuesta debe estar en español
+2. Analiza la idea y detecta qué información falta o es vaga
+3. Saluda al usuario de forma amigable y menciona el título de su proyecto
+4. Haz 2-3 preguntas clave para entender mejor:
    - ¿Quién es el usuario objetivo?
    - ¿Qué problema específico causa más dolor?
    - ¿Qué competencia existe?
    - ¿Cómo se monetizará?
-4. Mantén un tono conversacional y motivador
-5. NO respondas preguntas off-topic (matemáticas, clima, etc.). Si el usuario pregunta algo no relacionado, redirígelo amablemente al proyecto
+5. Mantén un tono conversacional y motivador
+6. NO respondas preguntas off-topic (matemáticas, clima, etc.). Si el usuario pregunta algo no relacionado, redirígelo amablemente al proyecto
 
 RESPONDE EN FORMATO JSON:
 {
@@ -150,11 +151,12 @@ ${historyLines}
 NUEVO MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES:
-1. Analiza la respuesta del usuario
-2. Si el usuario da información valiosa, actualiza los campos correspondientes con versiones mejoradas
-3. Si el usuario pregunta algo off-topic (ej: "cuánto es 2+2"), responde: "¡Hey! Mantengámonos enfocados en tu proyecto. ¿Qué tal si me cuentas más sobre [aspecto relevante]?"
-4. Si la información está completa, sugiere siguiente paso (validar competencia, monetización, etc.)
-5. Mantén el tono conversacional y motivador
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Toda tu respuesta debe estar en español
+2. Analiza la respuesta del usuario
+3. Si el usuario da información valiosa, actualiza los campos correspondientes con versiones mejoradas
+4. Si el usuario pregunta algo off-topic (ej: "cuánto es 2+2"), responde: "¡Hey! Mantengámonos enfocados en tu proyecto. ¿Qué tal si me cuentas más sobre [aspecto relevante]?"
+5. Si la información está completa, sugiere siguiente paso (validar competencia, monetización, etc.)
+6. Mantén el tono conversacional y motivador
 
 RESPONDE EN FORMATO JSON:
 {
@@ -248,15 +250,16 @@ El usuario quiere modificar la sección "${sectionNames[section] || section}".
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES:
-1. Analiza lo que el usuario quiere cambiar
-2. Genera una versión mejorada de la sección "${sectionNames[section] || section}"
-3. Responde de forma conversacional explicando los cambios
-4. Mantén coherencia con el resto de la idea
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Tu respuesta y el contenido actualizado deben estar en español
+2. Analiza lo que el usuario quiere cambiar
+3. Genera una versión mejorada de la sección "${sectionNames[section] || section}"
+4. Responde de forma conversacional explicando los cambios
+5. Mantén coherencia con el resto de la idea
 
 RESPONDE EN FORMATO JSON:
 {
-  "reply": "Tu respuesta conversacional explicando los cambios realizados",
-  "updatedSection": "El nuevo contenido mejorado para la sección ${sectionNames[section] || section}"
+  "reply": "Tu respuesta conversacional explicando los cambios realizados (EN ESPAÑOL)",
+  "updatedSection": "El nuevo contenido mejorado para la sección ${sectionNames[section] || section} (EN ESPAÑOL)"
 }
 `.trim();
 
@@ -313,18 +316,19 @@ Tu misión es ayudarlo a definir:
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES:
-1. Saluda al usuario y explica brevemente tu rol
-2. Pregunta sobre el contexto del proyecto (tipo de app, usuarios, escala esperada)
-3. Haz 2-3 preguntas clave para empezar a levantar requerimientos:
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Toda tu respuesta debe estar en español
+2. Saluda al usuario y explica brevemente tu rol
+3. Pregunta sobre el contexto del proyecto (tipo de app, usuarios, escala esperada)
+4. Haz 2-3 preguntas clave para empezar a levantar requerimientos:
    - ¿Cuáles son las funcionalidades core que el usuario debe poder hacer?
    - ¿Hay requisitos de performance? (usuarios concurrentes, tiempo de respuesta)
    - ¿Qué datos se manejarán y cómo fluyen entre módulos?
-4. Mantén un tono profesional pero accesible
-5. NO respondas preguntas off-topic, mantén el foco en el análisis técnico
+5. Mantén un tono profesional pero accesible
+6. NO respondas preguntas off-topic, mantén el foco en el análisis técnico
 
 RESPONDE EN FORMATO JSON:
 {
-  "response": "Tu mensaje conversacional aquí con preguntas específicas"
+  "response": "Tu mensaje conversacional aquí con preguntas específicas (EN ESPAÑOL)"
 }
 `.trim();
     } else {
@@ -340,11 +344,12 @@ CONTEXTO ACTUAL DEL PLAN:
 NUEVO MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES:
-1. Analiza la respuesta del usuario
-2. Identifica qué información nueva aporta para cada sección
-3. Haz preguntas de seguimiento para profundizar en detalles técnicos
-4. Si el usuario da información valiosa, sugiere cómo se vería redactado en el plan
-5. Guía hacia la completitud del plan de acción
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Toda tu respuesta debe estar en español
+2. Analiza la respuesta del usuario
+3. Identifica qué información nueva aporta para cada sección
+4. Haz preguntas de seguimiento para profundizar en detalles técnicos
+5. Si el usuario da información valiosa, sugiere cómo se vería redactado en el plan
+6. Guía hacia la completitud del plan de acción
 
 CRITERIOS DE COMPLETITUD:
 - Requerimientos Funcionales: Al menos 5-7 casos de uso bien definidos con actores, pre/post condiciones
@@ -432,13 +437,14 @@ El usuario quiere modificar la sección "${sectionNames[section] || section}".
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES CRÍTICAS:
-1. Analiza el cambio solicitado
-2. Genera la sección actualizada con viñetas (- )
-3. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Tu respuesta y todo el contenido generado debe estar en español
+2. Analiza el cambio solicitado
+3. Genera la sección actualizada con viñetas (- )
+4. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
    - OTRAS secciones de Plan de Acción (ej: si agregas requerimiento funcional, ¿necesita flujo de negocio?)
    - IDEACIÓN (ej: si agregas funcionalidad completamente nueva, ¿debe agregarse al alcance/objetivo?)
 
-4. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
+5. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
 
 RESPONDE EN FORMATO JSON:
 {
@@ -544,6 +550,7 @@ Tu tarea es generar un Plan de Acción técnico inicial con 3 secciones:
 3. **Flujo de Lógica de Negocio**: Descripción textual de los procesos principales paso a paso
 
 INSTRUCCIONES:
+- **RESPONDE SIEMPRE EN ESPAÑOL** - Todo el contenido debe estar en español
 - Sé específico y técnico
 - Usa viñetas con guiones (- ) para cada requerimiento
 - Define al menos 5 requerimientos funcionales
@@ -558,6 +565,8 @@ RESPONDE EN FORMATO JSON:
   "non_functional_requirements": "- El sistema debe responder en menos de 200ms\n- La aplicación debe soportar...\n...",
   "business_logic_flow": "FLUJO 1: Registro de usuario\n1. ...\n2. ...\n\nFLUJO 2: ...\n..."
 }
+
+IMPORTANTE: Todo el contenido generado DEBE estar en español.
 `.trim();
 
     const model = genAI.getGenerativeModel({
@@ -631,18 +640,59 @@ Tu tarea es generar una arquitectura técnica completa con las siguientes 7 secc
 
    Justifica brevemente tu elección (2-3 líneas).
 
-3. **database_schema**: Diseña el esquema completo de la base de datos:
-   - Para SQL: Tablas en formato SQL DDL con tipos de datos, PKs, FKs, índices
-   - Para NoSQL: Estructura de colecciones/documentos en formato JSON
-   - Para Híbrida: Ambos con separación clara
+3. **database_schema**: Diseña el esquema completo de la base de datos.
+   IMPORTANTE: Este contenido es para personas NO técnicas, así que SIEMPRE incluye:
 
-   Incluye al menos 5-7 entidades principales.
+   a) PRIMERO una explicación en lenguaje simple de qué es cada tabla/colección y para qué sirve
+   b) LUEGO el código técnico (SQL DDL o JSON)
 
-4. **entities_relationships**: Describe las entidades principales y sus relaciones:
-   - Lista cada entidad con sus atributos clave
-   - Define las relaciones (1:1, 1:N, N:M)
-   - Explica las reglas de negocio que afectan las relaciones
-   - Usa formato de diagrama ER en texto o descripción estructurada
+   Formato requerido:
+   """
+   ## Explicación del Esquema
+
+   El sistema necesita guardar información en las siguientes tablas:
+
+   - **usuarios**: Guarda la información de cada persona registrada (nombre, email, contraseña encriptada)
+   - **productos**: Almacena los productos disponibles (nombre, precio, descripción, stock)
+   - **ordenes**: Registra cada compra realizada (quién compró, cuándo, total)
+   [etc...]
+
+   ## Esquema Técnico
+
+   [Aquí el código SQL o JSON]
+   """
+
+4. **entities_relationships**: Describe las entidades principales y sus relaciones.
+   IMPORTANTE: Este contenido es para personas NO técnicas, así que SIEMPRE:
+
+   a) Explica cada entidad en lenguaje simple (qué representa, qué datos guarda)
+   b) Explica las relaciones de forma entendible (ej: "Un usuario puede tener muchos pedidos, pero cada pedido pertenece a un solo usuario")
+   c) Usa analogías del mundo real cuando sea útil
+
+   Formato requerido:
+   """
+   ## ¿Qué información maneja el sistema?
+
+   ### Usuario
+   Representa a cada persona que usa la aplicación. Guardamos su nombre, email y contraseña (encriptada por seguridad).
+
+   ### Producto
+   Cada artículo que se puede comprar. Tiene nombre, descripción, precio y cuántas unidades hay disponibles.
+
+   [etc...]
+
+   ## ¿Cómo se relacionan entre sí?
+
+   - Un **usuario** puede hacer muchas **compras** (relación 1 a muchos)
+   - Cada **compra** puede incluir varios **productos** (relación muchos a muchos)
+   [etc...]
+
+   ## Diagrama de Relaciones (formato texto)
+
+   Usuario (1) ----< (N) Ordenes
+   Ordenes (N) >----< (N) Productos
+   [etc...]
+   """
 
 5. **tech_stack**: Recomienda un stack tecnológico completo:
    - **Frontend**: Framework (React/Vue/Angular), State Management, UI Library
@@ -651,25 +701,44 @@ Tu tarea es generar una arquitectura técnica completa con las siguientes 7 secc
    - **Infraestructura**: Cloud (AWS/GCP/Azure), CI/CD, Monitoring
    - **Desarrollo**: Testing, Linting, Package Manager
 
-   Justifica cada elección brevemente.
+   Para cada tecnología, explica brevemente POR QUÉ se eligió y qué problema resuelve.
 
 6. **architecture_pattern**: Recomienda el patrón arquitectónico más apropiado:
    - MVC, Clean Architecture, Hexagonal, Microservicios, Serverless, Event-Driven, etc.
 
-   Explica por qué este patrón es el mejor para este proyecto (4-5 líneas).
+   Explica:
+   - Qué es este patrón en términos simples
+   - Por qué es el mejor para este proyecto
+   - Beneficios concretos que aporta
 
-7. **system_architecture**: Diseña la arquitectura completa del sistema:
-   - Capas de la aplicación y sus responsabilidades
-   - Componentes principales y cómo se comunican
-   - Flujo de datos (sincrónico/asincrónico)
-   - Seguridad: Autenticación, Autorización, Encriptación
-   - Escalabilidad: Load Balancing, Caching, CDN
-   - Monitoreo y Logging
+7. **system_architecture**: Diseña la arquitectura completa del sistema.
+   IMPORTANTE: Incluye explicaciones para no técnicos:
 
-   Usa formato de diagrama en texto o descripción estructurada detallada.
+   a) Primero explica la arquitectura de forma simple (como explicarías a alguien sin conocimientos técnicos)
+   b) Luego los detalles técnicos para desarrolladores
+
+   Formato requerido:
+   """
+   ## Visión General (explicación simple)
+
+   El sistema funciona como [analogía simple]. Tiene las siguientes partes principales:
+   - El **frontend** es lo que el usuario ve y usa (la aplicación web/móvil)
+   - El **backend** es el cerebro que procesa las peticiones
+   - La **base de datos** es donde se guarda toda la información
+   [etc...]
+
+   ## Arquitectura Técnica Detallada
+
+   ### Capas de la Aplicación
+   [Detalles técnicos...]
+
+   ### Seguridad
+   [Detalles técnicos...]
+   """
 
 INSTRUCCIONES IMPORTANTES:
-- Sé específico y técnico en cada sección
+- **RESPONDE SIEMPRE EN ESPAÑOL** - Todo el contenido debe estar en español
+- Sé específico y técnico, pero SIEMPRE incluye explicaciones para no técnicos
 - Basa tus decisiones en los requerimientos del plan de acción
 - Usa mejores prácticas de la industria
 - Piensa en escalabilidad, seguridad y mantenibilidad
@@ -781,6 +850,7 @@ Tu rol es:
 6. Recomendar patrones y tecnologías apropiadas
 
 **Reglas importantes:**
+- **RESPONDE SIEMPRE EN ESPAÑOL** - Toda tu respuesta debe estar en español
 - Sé específico y técnico cuando sea necesario
 - Justifica tus recomendaciones con razones técnicas
 - Considera escalabilidad, mantenibilidad, seguridad y performance
@@ -788,6 +858,7 @@ Tu rol es:
 - Si sugieres cambios, explica el impacto y los beneficios
 - Mantén coherencia con las decisiones arquitectónicas previas
 - NO respondas preguntas off-topic, enfócate en la arquitectura
+- Si incluyes código o esquemas, SIEMPRE acompáñalos de una explicación en lenguaje simple
 
 Responde de forma clara, profesional y útil.
 
@@ -884,14 +955,20 @@ El usuario quiere modificar la sección "${sectionNames[section] || section}".
 MENSAJE DEL USUARIO: "${sanitizedMessage}"
 
 INSTRUCCIONES CRÍTICAS:
-1. Analiza el cambio solicitado
-2. Genera la sección actualizada
-3. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
+1. **RESPONDE SIEMPRE EN ESPAÑOL** - Tu respuesta y todo el contenido generado debe estar en español
+2. Analiza el cambio solicitado
+3. Genera la sección actualizada
+4. IMPORTANTE: Detecta si este cambio requiere actualizaciones en:
    - OTRAS secciones de Arquitectura (ej: si agregas historia de usuario, ¿necesita cambios en BD, entidades, etc.?)
    - PLAN DE ACCIÓN (ej: si agregas funcionalidad nueva, ¿falta el requerimiento funcional?)
    - IDEACIÓN (ej: si es algo completamente nuevo, ¿debe agregarse al alcance?)
 
-4. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
+5. Para cada cambio nuevo, identifica el TEXTO EXACTO que se agregó (para resaltarlo visualmente)
+
+6. **PARA SECCIONES TÉCNICAS** (database_schema, entities_relationships, system_architecture):
+   - SIEMPRE incluye una explicación en lenguaje simple ANTES del código técnico
+   - Explica qué hace cada tabla/entidad/componente para que alguien sin conocimientos técnicos lo entienda
+   - Usa analogías del mundo real cuando sea útil
 
 RESPONDE EN FORMATO JSON:
 {
@@ -1023,12 +1100,12 @@ Tu tarea es MEJORAR y EXPANDIR cada campo con información más detallada y estr
    - Usuarios objetivo
 
 IMPORTANTE:
+- **RESPONDE SIEMPRE EN ESPAÑOL** - Todo el contenido debe estar en español
 - Mantén la esencia de la idea original
-- Usa el idioma del usuario (si escribe en español, responde en español)
 - Sé específico pero conciso (2-4 oraciones por campo)
 - Si un campo está vacío, genera contenido basándote en el título
 
-RESPONDE ÚNICAMENTE EN FORMATO JSON:
+RESPONDE ÚNICAMENTE EN FORMATO JSON (EN ESPAÑOL):
 {
   "title": "Título mejorado",
   "objective": "Objetivo expandido con detalles",
